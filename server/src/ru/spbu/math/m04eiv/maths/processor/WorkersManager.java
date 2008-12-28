@@ -5,6 +5,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import ru.spbu.math.m04eiv.maths.matrix.IMatrixReader;
+import ru.spbu.math.m04eiv.maths.matrix.IMatrixWriter;
 import ru.spbu.math.m04eiv.maths.tasks.ITask;
 
 public class WorkersManager {
@@ -22,7 +24,7 @@ public class WorkersManager {
 		}
 	}
 
-	private final class TaskRunner implements Runnable {
+	private final class TaskRunner implements Runnable, IMatrixWriter, IMatrixReader {
 		private final ITask task;
 	
 		private TaskRunner(ITask task) {
