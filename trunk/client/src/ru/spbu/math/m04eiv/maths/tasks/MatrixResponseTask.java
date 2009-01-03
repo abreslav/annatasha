@@ -30,12 +30,17 @@ final class MatrixResponseTask implements ITask {
 				}
 				System.out.println();
 			}
+		} else {
+			System.out.println(command.getStatus());
 		}
 	}
 
 	@Override
 	public void interrupt() {}
-
+	
+	@Override
+	public void join() {}
+	
 	@Override
 	public void releaseResources() {
 	}

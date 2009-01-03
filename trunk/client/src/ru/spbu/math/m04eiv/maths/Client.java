@@ -9,6 +9,7 @@ import ru.spbu.math.m04eiv.maths.protocol.ICommandRunner;
 import ru.spbu.math.m04eiv.maths.protocol.Protocol;
 import ru.spbu.math.m04eiv.maths.protocol.commands.Command;
 import ru.spbu.math.m04eiv.maths.protocol.commands.GetMatrix;
+import ru.spbu.math.m04eiv.maths.protocol.commands.MultiplyMatrices;
 import ru.spbu.math.m04eiv.maths.protocol.commands.SetMatrix;
 import ru.spbu.math.m04eiv.maths.tasks.ITask;
 import ru.spbu.math.m04eiv.maths.tasks.TasksFactory;
@@ -63,6 +64,17 @@ public final class Client implements Runnable {
 		m_a.setCell(1, 2, 6);
 		client.proto.writeCommand(new SetMatrix("a", m_a));
 		client.proto.writeCommand(new GetMatrix(0, "a"));
+		
+		Matrix m_b = new Matrix(3, 1);
+		m_b.setCell(0, 0, 1);
+		m_b.setCell(1, 0, 2);
+		m_b.setCell(2, 0, 5);
+		
+		client.proto.writeCommand(new SetMatrix("b", m_b));
+		client.proto.writeCommand(new GetMatrix(1, "b"));
+		
+		client.proto.writeCommand(new MultiplyMatrices("a", "b", "c"));
+		client.proto.writeCommand(new GetMatrix(2, "c"));
 
 	}
 
