@@ -3,6 +3,8 @@
 	<name>server</name>
 	<comment></comment>
 	<projects>
+		<project>annotations</project>
+		<project>common</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
