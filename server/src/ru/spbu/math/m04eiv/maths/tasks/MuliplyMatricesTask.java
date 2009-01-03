@@ -93,6 +93,7 @@ final class MuliplyMatricesTask extends Task {
 
 	@Override
 	public void interrupt() {
+		dest.setStatus(Status.Cancelled);
 	}
 
 	public void decreaseWorkersCount() {

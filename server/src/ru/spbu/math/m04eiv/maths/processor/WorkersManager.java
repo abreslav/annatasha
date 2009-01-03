@@ -48,7 +48,7 @@ public class WorkersManager {
 		}
 	}
 
-	private static final int MAX_WORKERS = 100;
+	private static final int MAX_WORKERS = 10;
 
 	private final Executor executor = Executors.newFixedThreadPool(MAX_WORKERS);
 	private final Executor tasksExecutor = Executors.newCachedThreadPool();

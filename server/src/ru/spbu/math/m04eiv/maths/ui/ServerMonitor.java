@@ -11,6 +11,7 @@
 
 package ru.spbu.math.m04eiv.maths.ui;
 
+import java.awt.Color;
 import java.util.concurrent.Executors;
 
 import ru.spbu.math.m04eiv.maths.Server;
@@ -44,6 +45,8 @@ public class ServerMonitor extends javax.swing.JFrame {
 		setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
 		jTasksList.setModel(new TasksListModel(server.getManager()));
+		jTasksList.setCellRenderer(new TaskListCellRenderer());
+		//jTasksList.setSelectionBackground(Color.BLUE);
 		jScrollPane1.setViewportView(jTasksList);
 
 		jKillButton.setText("Kill");
