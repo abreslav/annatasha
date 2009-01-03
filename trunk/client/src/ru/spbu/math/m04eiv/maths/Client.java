@@ -14,6 +14,20 @@ import ru.spbu.math.m04eiv.maths.tasks.ITask;
 import ru.spbu.math.m04eiv.maths.tasks.client.TasksFactory;
 
 public final class Client implements Runnable {
+	private final class ClientTasksRunner implements ICommandRunner {
+		private final TasksFactory factory;
+
+		private ClientTasksRunner(TasksFactory factory) {
+			this.factory = factory;
+		}
+
+		@Override
+		public void push(Command command) {
+			ITask task = factory.createTask(Client.this.proto, command);
+			task.execute();
+		}
+	}
+
 	private final static int PORT = 4848;
 
 	private Protocol proto;
@@ -27,15 +41,7 @@ public final class Client implements Runnable {
 			final TasksFactory factory = new TasksFactory();
 			
 			Protocol proto = new Protocol(socket,
-					new ICommandRunner() {
-
-						@Override
-						public void push(Command command) {
-							ITask task = factory.createTask(Client.this.proto, command);
-							task.execute();
-						}
-				
-			});
+					new ClientTasksRunner(factory));
 			this.proto = proto;
 			proto.start();
 		} catch (IOException e) {
