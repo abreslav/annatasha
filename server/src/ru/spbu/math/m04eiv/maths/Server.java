@@ -27,6 +27,7 @@ public final class Server implements Runnable {
 
 	public void run() {
 		try {
+			manager.start();
 			ServerSocket serverSocket = new ServerSocket(PORT);
 			while (true) {
 				Socket socket = serverSocket.accept();
