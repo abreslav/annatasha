@@ -11,7 +11,6 @@
 
 package ru.spbu.math.m04eiv.maths.ui;
 
-import java.awt.Color;
 import java.util.concurrent.Executors;
 
 import ru.spbu.math.m04eiv.maths.Server;
