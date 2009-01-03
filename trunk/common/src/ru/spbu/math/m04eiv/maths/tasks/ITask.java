@@ -17,4 +17,8 @@ public interface ITask {
 	
 	@Method.ExecPermissions(ITaskManager.class)
 	public abstract void interrupt();
+
+	@Method.ExecPermissions(ITaskManager.class)
+	public abstract void join();
+	
 }
