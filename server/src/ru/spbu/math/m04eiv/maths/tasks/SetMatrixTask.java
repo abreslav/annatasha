@@ -1,4 +1,4 @@
-package ru.spbu.math.m04eiv.maths.tasks.server;
+package ru.spbu.math.m04eiv.maths.tasks;
 
 import ru.spbu.math.m04eiv.maths.matrix.Matrix;
 import ru.spbu.math.m04eiv.maths.matrix.MatrixDescriptor;

@@ -14,7 +14,7 @@ public class Protocol {
 	private final ICommandRunner commandRunner;
 	private final ExecutorService executor;
 
-	private class ClientThread implements Runnable {
+	private class ListenerThread implements Runnable {
 
 		@Override
 		public void run() {
@@ -38,7 +38,7 @@ public class Protocol {
 	}
 
 	public void start() {
-		executor.execute(new ClientThread());
+		executor.execute(new ListenerThread());
 	}
 
 	public void writeCommand(Command command) {
