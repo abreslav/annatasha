@@ -32,4 +32,7 @@ final class QueryTask implements ITask {
 		return true;
 	}
 
+	@Override
+	public void join() {}
+
 }
