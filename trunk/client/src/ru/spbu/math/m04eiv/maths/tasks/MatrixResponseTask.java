@@ -1,10 +1,6 @@
 package ru.spbu.math.m04eiv.maths.tasks;
 
-import ru.spbu.math.m04eiv.maths.matrix.Matrix;
-import ru.spbu.math.m04eiv.maths.matrix.Matrix.Dimensions;
-import ru.spbu.math.m04eiv.maths.protocol.Status;
 import ru.spbu.math.m04eiv.maths.protocol.commands.MatrixResponse;
-import ru.spbu.math.m04eiv.maths.tasks.ITask;
 
 final class MatrixResponseTask implements ITask {
 	
@@ -21,7 +17,7 @@ final class MatrixResponseTask implements ITask {
 
 	@Override
 	public void execute() {
-		if (command.getStatus() == Status.Ready) {
+/*		if (command.getStatus() == Status.Ready) {
 			final Matrix matrix = command.getMatrix();
 			final Dimensions dim = matrix.getSize();
 			for (int m = 0; m < dim.M; ++m) {
@@ -30,9 +26,9 @@ final class MatrixResponseTask implements ITask {
 				}
 				System.out.println();
 			}
-		} else {
+		} else {*/
 			System.out.println(command.getStatus());
-		}
+		//}
 	}
 
 	@Override

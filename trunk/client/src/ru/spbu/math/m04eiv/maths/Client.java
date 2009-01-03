@@ -50,12 +50,13 @@ public final class Client implements Runnable {
 		}
 	}
 
+	private final static int SZ = 1000; 
 	public static void main(String[] args) {
 		Client client = new Client();
 		Executors.newSingleThreadExecutor().execute(client);
 		while (client.proto == null)
 			;
-		Matrix m_a = new Matrix(3, 3);
+		Matrix m_a = new Matrix(SZ, SZ);
 		m_a.setCell(0, 0, 1);
 		m_a.setCell(0, 1, 2);
 		m_a.setCell(0, 2, 3);
@@ -65,7 +66,7 @@ public final class Client implements Runnable {
 		client.proto.writeCommand(new SetMatrix("a", m_a));
 		client.proto.writeCommand(new GetMatrix(0, "a"));
 		
-		Matrix m_b = new Matrix(3, 1);
+		Matrix m_b = new Matrix(SZ, SZ);
 		m_b.setCell(0, 0, 1);
 		m_b.setCell(1, 0, 2);
 		m_b.setCell(2, 0, 5);

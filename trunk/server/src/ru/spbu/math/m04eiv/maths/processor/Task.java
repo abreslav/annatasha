@@ -18,6 +18,7 @@ public abstract class Task implements ITask {
 	private final String description;
 	
 	public Task(WorkersManager manager, String description) {
+		System.err.println(description);
 		this.manager = manager;
 		this.description = description;
 		this.listener = manager.getListener();

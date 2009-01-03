@@ -1,5 +1,6 @@
 package ru.spbu.math.m04eiv.maths.protocol.serialize;
 
+import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -36,8 +37,6 @@ public class MatrixRepresentation implements RepresentationProxy<Matrix> {
 		
 		DataInputStream dis = new DataInputStream(stream);
 
-		// I don't use IntegerRepresentation to avoid multiple allocations of
-		// small array chunks during IntegerRepresentation.putIntToStream()
 		final int M = dis.readInt();
 		final int N = dis.readInt();
 
@@ -61,7 +60,7 @@ public class MatrixRepresentation implements RepresentationProxy<Matrix> {
 		assert matrix != null;
 		assert stream != null;
 		
-		DataOutputStream dos = new DataOutputStream(stream);
+		DataOutputStream dos = new DataOutputStream(new BufferedOutputStream( stream ));
 
 		final Dimensions dim = matrix.getSize();
 
@@ -73,6 +72,7 @@ public class MatrixRepresentation implements RepresentationProxy<Matrix> {
 				dos.writeInt(matrix.getCell(m, n));
 			}
 		}
+		dos.flush();
 	}
 
 }
