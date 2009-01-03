@@ -9,7 +9,7 @@ import ru.spbu.math.m04eiv.maths.processor.WorkersManager;
 import ru.spbu.math.m04eiv.maths.protocol.CommandRunnersManager;
 import ru.spbu.math.m04eiv.maths.protocol.Protocol;
 import ru.spbu.math.m04eiv.maths.protocol.ProtocolsManager;
-import ru.spbu.math.m04eiv.maths.tasks.server.TasksFactory;
+import ru.spbu.math.m04eiv.maths.tasks.TasksFactory;
 
 
 public final class Server implements Runnable {
