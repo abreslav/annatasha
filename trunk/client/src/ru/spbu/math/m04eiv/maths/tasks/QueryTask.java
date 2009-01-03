@@ -1,4 +1,4 @@
-package ru.spbu.math.m04eiv.maths.tasks.client;
+package ru.spbu.math.m04eiv.maths.tasks;
 
 import ru.spbu.math.m04eiv.maths.protocol.Protocol;
 import ru.spbu.math.m04eiv.maths.protocol.commands.Command;

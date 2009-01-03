@@ -11,7 +11,7 @@ import ru.spbu.math.m04eiv.maths.protocol.commands.Command;
 import ru.spbu.math.m04eiv.maths.protocol.commands.GetMatrix;
 import ru.spbu.math.m04eiv.maths.protocol.commands.SetMatrix;
 import ru.spbu.math.m04eiv.maths.tasks.ITask;
-import ru.spbu.math.m04eiv.maths.tasks.client.TasksFactory;
+import ru.spbu.math.m04eiv.maths.tasks.TasksFactory;
 
 public final class Client implements Runnable {
 	private final class ClientTasksRunner implements ICommandRunner {
