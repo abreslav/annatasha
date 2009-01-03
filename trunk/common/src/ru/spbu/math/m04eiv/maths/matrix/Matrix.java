@@ -20,9 +20,11 @@ public final class Matrix {
 	@Field.WritePermissions(IMatrixWriter.class)
 	@Field.ReadPermissions(IMatrixReader.class)
 	private int[] data = null;
+	
 	@Field.WritePermissions(IMatrixWriter.class)
 	@Field.ReadPermissions(IMatrixReader.class)
 	private int M;
+	
 	@Field.WritePermissions(IMatrixWriter.class)
 	@Field.ReadPermissions(IMatrixReader.class)
 	private int N;
