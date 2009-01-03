@@ -23,6 +23,7 @@ final class MuliplyMatricesTask extends Task {
 
 	private volatile int taskSize;
 	private Lock lock;
+	private volatile MatrixDescriptor dest;
 
 	public MuliplyMatricesTask(WorkersManager man, MatrixPool pool, MultiplyMatrices command) {
 		super(man, command.getNames()[2] + " = " + command.getNames()[0] + " x " + command.getNames()[1]);
@@ -43,8 +44,7 @@ final class MuliplyMatricesTask extends Task {
 	public void execute() {
 		final MatrixDescriptor lhs = lock.getReadDescriptor(0);
 		final MatrixDescriptor rhs = lock.getReadDescriptor(1);
-		final MatrixDescriptor dest = lock.getWriteDescriptor(0);
-
+		dest = lock.getWriteDescriptor(0);
 		dest.setStatus(Status.Processing);
 		if (lhs.getStatus() != Status.Ready || rhs.getStatus() != Status.Ready) {
 			dest.setStatus(Status.Error);
@@ -63,6 +63,7 @@ final class MuliplyMatricesTask extends Task {
 
 		taskSize = l.M * r.N;
 		workers.set(taskSize);
+		dest.getMatrix().setSize(l.M, r.N);
 
 		getListener().taskStarted(this, taskSize);
 
@@ -99,6 +100,7 @@ final class MuliplyMatricesTask extends Task {
 		getListener().taskProgress(this, taskSize - left);
 
 		if (left == 0) {
+			dest.setStatus(Status.Ready);
 			done();
 		}
 	}

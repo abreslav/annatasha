@@ -12,8 +12,9 @@ public abstract class Task implements ITask {
 	private final Listener listener;
 	
 	private final Lock executingLock;
-	private final Condition finished;
+	private final Condition finishedCondition;
 	private volatile boolean interrupted;
+	private volatile boolean finished;
 	private final String description;
 	
 	public Task(WorkersManager manager, String description) {
@@ -21,8 +22,9 @@ public abstract class Task implements ITask {
 		this.description = description;
 		this.listener = manager.getListener();
 		this.executingLock = new ReentrantLock();
-		this.finished = this.executingLock.newCondition();
+		this.finishedCondition = this.executingLock.newCondition();
 		this.interrupted = false;
+		this.finished = false;
 	}
 	
 	public final String getDescription() {
@@ -54,7 +56,8 @@ public abstract class Task implements ITask {
 	private final void done(boolean ok) {
 		executingLock.lock();
 		try {
-			finished.signalAll();
+			finished = true;
+			finishedCondition.signalAll();
 		} finally {
 			executingLock.unlock();
 		}
@@ -71,10 +74,9 @@ public abstract class Task implements ITask {
 	public final void join() {
 		executingLock.lock();
 		try {
-			while (true) {
+			while (!finished) {
 				try {
-					finished.await();
-					break;
+					finishedCondition.await();
 				} catch (InterruptedException e) {}
 			}
 		} finally {
