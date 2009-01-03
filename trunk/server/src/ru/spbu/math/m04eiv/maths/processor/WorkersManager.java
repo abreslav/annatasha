@@ -36,6 +36,7 @@ public class WorkersManager {
 			if (task.tryFetchResources()) {
 				try {
 					task.execute();
+					task.join();
 				} finally {
 					task.releaseResources();
 				}

@@ -39,6 +39,7 @@ public class CommandRunner implements ICommandRunner {
 				@Override
 				public void run() {
 					processor.addTask(t);
+					t.join();
 				}
 			});
 			
