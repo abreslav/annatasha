@@ -22,4 +22,32 @@ public interface Method {
 		Class<?>[] value();
 	}
 
+	/**
+	 * Specifies that the method always returns the same value, called at the
+	 * same object with.
+	 * 
+	 * Must validate that overriding method also specifies this attribute if
+	 * overriden method does.
+	 * 
+	 * @author Ivan Egorov
+	 */
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target( { ElementType.METHOD, ElementType.CONSTRUCTOR })
+	public @interface TimeImmutable {
+	}
+
+	/**
+	 * The result of method is marked with specified class marker. May be used
+	 * in further constraints.
+	 * 
+	 * @author Ivan Egorov
+	 * 
+	 */
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target( { ElementType.METHOD, ElementType.CONSTRUCTOR })
+	@Inherited
+	public @interface MarkedResult {
+		Class<?> value();
+	}
+
 }

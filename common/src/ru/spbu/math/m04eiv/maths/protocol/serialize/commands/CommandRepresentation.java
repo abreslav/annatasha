@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
+
 import ru.spbu.math.m04eiv.maths.protocol.commands.Command;
 import ru.spbu.math.m04eiv.maths.protocol.commands.CommandsVisitor;
 import ru.spbu.math.m04eiv.maths.protocol.commands.GetMatrix;
@@ -40,6 +42,7 @@ public final class CommandRepresentation implements
 	}
 
 	@Override
+	@ExecPermissions(Command.Constructor.class)
 	public Command readFromStream(InputStream stream) throws IOException {
 		assert stream != null;
 
@@ -56,6 +59,7 @@ public final class CommandRepresentation implements
 	}
 
 	@Override
+	@ExecPermissions({ Command.Reader.class, Command.Visitor.class })
 	public void writeToStream(Command object, OutputStream stream)
 			throws IOException {
 		Writer w = new Writer(stream);
@@ -70,7 +74,7 @@ public final class CommandRepresentation implements
 		return INSTANCE;
 	}
 
-	private static class Writer implements CommandsVisitor {
+	private final static class Writer implements CommandsVisitor {
 		private final OutputStream stream;
 		private IOException exception;
 
