@@ -2,11 +2,15 @@ package ru.spbu.math.m04eiv.maths.tasks;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.google.code.annatasha.annotations.Constraint.Marked;
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
+
 import ru.spbu.math.m04eiv.maths.matrix.MatrixDescriptor;
 import ru.spbu.math.m04eiv.maths.matrix.MatrixPool;
 import ru.spbu.math.m04eiv.maths.matrix.Matrix.Dimensions;
 import ru.spbu.math.m04eiv.maths.matrix.MatrixPool.Lock;
 import ru.spbu.math.m04eiv.maths.processor.Task;
+import ru.spbu.math.m04eiv.maths.processor.Worker;
 import ru.spbu.math.m04eiv.maths.processor.WorkersManager;
 import ru.spbu.math.m04eiv.maths.protocol.Status;
 import ru.spbu.math.m04eiv.maths.protocol.commands.MultiplyMatrices;
@@ -23,6 +27,8 @@ final class MuliplyMatricesTask extends Task {
 
 	private volatile int taskSize;
 	private Lock lock;
+	
+	@Marked(MatrixPool.Lock.class)
 	private volatile MatrixDescriptor dest;
 
 	public MuliplyMatricesTask(WorkersManager man, MatrixPool pool, MultiplyMatrices command) {
@@ -96,6 +102,7 @@ final class MuliplyMatricesTask extends Task {
 		dest.setStatus(Status.Cancelled);
 	}
 
+	@ExecPermissions(Worker.class)
 	public void decreaseWorkersCount() {
 		int left = workers.decrementAndGet();
 		getListener().taskProgress(this, taskSize - left);

@@ -4,6 +4,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import ru.spbu.math.m04eiv.maths.tasks.IResourceManager;
+
+import com.google.code.annatasha.annotations.Field.ReadPermissions;
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
+import com.google.code.annatasha.annotations.Method.MarkedResult;
+
 public class MatrixPool {
 
 	public final class Lock {
@@ -11,6 +17,8 @@ public class MatrixPool {
 		private final MatrixDescriptor[] writeLock;
 
 		private final boolean acquired;
+		
+		private volatile boolean locked;
 
 		private Lock(String[] sReadLock, String[] sWriteLock) {
 			readLock = new MatrixDescriptor[sReadLock.length];
@@ -62,25 +70,30 @@ public class MatrixPool {
 				}
 
 				map.putAll(addon);
+				locked = true;
 				acquired = true;
 			}
 		}
 		
 		private void release() {
+			locked = false;
 			synchronized (map) {
 				readUnlock(readLock.length);
 				writeUnlock(writeLock.length);
 			}
 		}
 
+
+		@MarkedResult(MatrixPool.Lock.class)
 		public MatrixDescriptor getReadDescriptor(int index) {
-			assert acquired : "Lock MUST have been acquired";
+			assert acquired && locked;
 
 			return readLock[index];
 		}
 
+		@MarkedResult(MatrixPool.Lock.class)
 		public MatrixDescriptor getWriteDescriptor(int index) {
-			assert acquired : "Lock MUST have been acquired";
+			assert acquired && locked;
 
 			return writeLock[index];
 		}
@@ -120,13 +133,16 @@ public class MatrixPool {
 		}
 	}
 
+	@ReadPermissions(IResourceManager.class)
 	private final ConcurrentHashMap<String, MatrixDescriptor> map = new ConcurrentHashMap<String, MatrixDescriptor>();
 
+	@ExecPermissions(IResourceManager.class)
 	public Lock tryAcquireLock(String[] readLock,
 			String[] writeLock) {
 		return new Lock(readLock, writeLock);
 	}
 
+	@ExecPermissions(IResourceManager.class)
 	public void releaseLock(Lock lock) {
 		lock.release();
 	}

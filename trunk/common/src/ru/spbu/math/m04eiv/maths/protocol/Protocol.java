@@ -5,6 +5,8 @@ import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
+
 import ru.spbu.math.m04eiv.maths.protocol.commands.Command;
 import ru.spbu.math.m04eiv.maths.protocol.serialize.commands.CommandRepresentation;
 
@@ -14,7 +16,7 @@ public class Protocol {
 	private final ICommandRunner commandRunner;
 	private final ExecutorService executor;
 
-	private class ListenerThread implements Runnable {
+	private class ListenerThread implements Runnable, Command.Constructor {
 
 		@Override
 		public void run() {
@@ -41,9 +43,11 @@ public class Protocol {
 		executor.execute(new ListenerThread());
 	}
 
+	@ExecPermissions(Command.Reader.class)
 	public void writeCommand(Command command) {
 		try {
-			CommandRepresentation.getInstance().writeToStream(command, socket.getOutputStream());
+			CommandRepresentation.getInstance().writeToStream(command,
+					socket.getOutputStream());
 		} catch (IOException e) {
 		}
 	}

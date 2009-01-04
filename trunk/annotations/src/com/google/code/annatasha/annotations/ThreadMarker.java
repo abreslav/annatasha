@@ -6,10 +6,15 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-
+/**
+ * Marks the types which may be suited as thread marker
+ * 
+ * @author Ivan Egorov
+ * 
+ */
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.TYPE})
+@Target( { ElementType.TYPE })
 @Inherited
-public @interface ThreadRoot {
+public @interface ThreadMarker {
 
 }

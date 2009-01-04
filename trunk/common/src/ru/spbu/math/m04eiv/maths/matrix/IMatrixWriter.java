@@ -1,8 +1,8 @@
 package ru.spbu.math.m04eiv.maths.matrix;
 
-import com.google.code.annatasha.annotations.ThreadRoot;
+import com.google.code.annatasha.annotations.ThreadMarker;
 
-@ThreadRoot
+@ThreadMarker
 public interface IMatrixWriter {
 
 }
