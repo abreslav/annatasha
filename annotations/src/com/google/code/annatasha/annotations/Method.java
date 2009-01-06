@@ -48,6 +48,22 @@ public interface Method {
 	@Inherited
 	public @interface MarkedResult {
 		Class<?> value();
+
+		/**
+		 * <li>If <code>scope</code> is <code>Scope.Global</code> then
+		 * marker may be passed without limitations.
+		 * <li>If <code>scope</code> is <code>Scope.Enclosing</code> then
+		 * marker is verified to live no longer than the instance on which the
+		 * method is called. This constraint is checked via following control
+		 * algorithm:
+		 * <li>1. the method must be called on instance (I), referenced through
+		 * local stack (or through the chain of final fields);
+		 * <li>2. the marker (M) may be bound only to the values on local stack
+		 * at the depth at least equal to the call, that returned it
+		 * 
+		 * @return
+		 */
+		Scope scope() default Scope.Global;
 	}
 
 }

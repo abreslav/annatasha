@@ -48,6 +48,9 @@ final class MuliplyMatricesTask extends Task {
 
 	@Override
 	public void execute() {
+		// The trick here is to ensure the constraint 1 of Method.MarkedResult.
+		final Lock lock = this.lock;
+		
 		final MatrixDescriptor lhs = lock.getReadDescriptor(0);
 		final MatrixDescriptor rhs = lock.getReadDescriptor(1);
 		dest = lock.getWriteDescriptor(0);

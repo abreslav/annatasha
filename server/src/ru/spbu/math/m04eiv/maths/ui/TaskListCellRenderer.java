@@ -9,9 +9,12 @@ import javax.swing.ListCellRenderer;
 import ru.spbu.math.m04eiv.maths.processor.Listener;
 import ru.spbu.math.m04eiv.maths.ui.TasksListModel.TaskInfo;
 
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
+
 public class TaskListCellRenderer extends JLabel implements ListCellRenderer {
 
 	@Override
+	@ExecPermissions(UIRunnable.class)
 	public Component getListCellRendererComponent(JList list, Object value,
 			int index, boolean isSelected, boolean cellHasFocus) {
 		assert list != null;

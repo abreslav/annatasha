@@ -16,7 +16,7 @@ public interface Constraint {
 	 * to be either null or assigned to from marked value. Application to
 	 * non-private field is error.
 	 * 
-	 * @author ivan
+	 * @author Ivan Egorov
 	 * 
 	 */
 	@Retention(RetentionPolicy.RUNTIME)

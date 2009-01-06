@@ -5,6 +5,7 @@ import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 public abstract class Command {
 	
+
 	@ThreadMarker
 	public interface Constructor {}
 	
@@ -13,6 +14,9 @@ public abstract class Command {
 	
 	@ThreadMarker
 	public interface Reader extends Visitor {}
+
+	@ThreadMarker
+	public interface Writer {}
 	
 	@ExecPermissions(Visitor.class)
 	public abstract void acceptVisitor(CommandsVisitor visitor);
