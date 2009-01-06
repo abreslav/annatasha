@@ -9,7 +9,6 @@ import ru.spbu.math.m04eiv.maths.tasks.IResourceManager;
 import com.google.code.annatasha.annotations.Scope;
 import com.google.code.annatasha.annotations.Field.ReadPermissions;
 import com.google.code.annatasha.annotations.Method.ExecPermissions;
-import com.google.code.annatasha.annotations.Method.MarkedResult;
 
 public class MatrixPool {
 
@@ -85,14 +84,14 @@ public class MatrixPool {
 		}
 
 
-		@MarkedResult(value = MatrixPool.Lock.class, scope = Scope.Enclosing)
+//		@MarkedResult(value = MatrixPool.Lock.class, scope = Scope.Enclosing)
 		public MatrixDescriptor getReadDescriptor(int index) {
 			assert acquired && locked;
 
 			return readLock[index];
 		}
 
-		@MarkedResult(value = MatrixPool.Lock.class, scope = Scope.Enclosing)
+//		@MarkedResult(value = MatrixPool.Lock.class, scope = Scope.Enclosing)
 		public MatrixDescriptor getWriteDescriptor(int index) {
 			assert acquired && locked;
 
