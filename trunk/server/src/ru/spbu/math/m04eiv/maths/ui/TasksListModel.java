@@ -9,6 +9,8 @@ import ru.spbu.math.m04eiv.maths.processor.Listener;
 import ru.spbu.math.m04eiv.maths.processor.Task;
 import ru.spbu.math.m04eiv.maths.processor.WorkersManager;
 
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
+
 public final class TasksListModel extends AbstractListModel {
 	
 	protected final static class TaskInfo {
@@ -29,6 +31,7 @@ public final class TasksListModel extends AbstractListModel {
 	}
 
 	@Override
+	@ExecPermissions(UIRunnable.class)
 	public Object getElementAt(int index) {
 		return tasks.get(index);
 	}
@@ -56,8 +59,6 @@ public final class TasksListModel extends AbstractListModel {
 		}
 		
 	}
-	
-	private interface UIRunnable extends Runnable {}
 	
 	private final class TaskAdded implements UIRunnable {
 

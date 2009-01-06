@@ -7,7 +7,6 @@ import ru.spbu.math.m04eiv.maths.matrix.MatrixPool.Lock;
 import ru.spbu.math.m04eiv.maths.processor.Task;
 import ru.spbu.math.m04eiv.maths.processor.WorkersManager;
 import ru.spbu.math.m04eiv.maths.protocol.Protocol;
-import ru.spbu.math.m04eiv.maths.protocol.Status;
 import ru.spbu.math.m04eiv.maths.protocol.commands.GetMatrix;
 import ru.spbu.math.m04eiv.maths.protocol.commands.MatrixResponse;
 
@@ -22,7 +21,7 @@ final class GetMatrixTask extends Task {
 	private final static String[] writeDescriptors = new String[0];
 
 	private Lock lock;
-	private volatile Status status;
+//	private volatile Status status;
 	private final GetMatrix command;
 
 	public GetMatrixTask(WorkersManager man, MatrixPool pool,
@@ -65,8 +64,8 @@ final class GetMatrixTask extends Task {
 		return lock.isAcquired();
 	}
 
-	public Status getStatus() {
-		return status;
-	}
+//	public Status getStatus() {
+//		return status;
+//	}
 
 }

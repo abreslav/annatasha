@@ -14,7 +14,10 @@ package ru.spbu.math.m04eiv.maths.ui;
 import java.util.concurrent.Executors;
 
 import ru.spbu.math.m04eiv.maths.Server;
+import ru.spbu.math.m04eiv.maths.tasks.ITaskManager;
 import ru.spbu.math.m04eiv.maths.ui.TasksListModel.TaskInfo;
+
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 /**
  * 
@@ -50,9 +53,12 @@ public class ServerMonitor extends javax.swing.JFrame {
 
 		jKillButton.setText("Kill");
 		jKillButton.addActionListener(new java.awt.event.ActionListener() {
+			
+			@ExecPermissions(UIRunnable.class)
 			public void actionPerformed(java.awt.event.ActionEvent evt) {
 				jKillButtonActionPerformed(evt);
 			}
+			
 		});
 
 		javax.swing.GroupLayout layout = new javax.swing.GroupLayout(
@@ -79,20 +85,33 @@ public class ServerMonitor extends javax.swing.JFrame {
 		pack();
 	}
 
+	@ExecPermissions(UIRunnable.class)
 	private void jKillButtonActionPerformed(java.awt.event.ActionEvent evt) {
 		final TasksListModel model = (TasksListModel) jTasksList.getModel();
 		final int[] indices = jTasksList.getSelectedIndices();
+		final TaskInfo[] ti = new TaskInfo[indices.length];
 		
-		Executors.newSingleThreadExecutor().execute(new Runnable(){
+		for (int i = 0; i < indices.length; ++i) {
+			ti[i] = (TaskInfo) model.getElementAt(indices[i]);
+		}
+		
+		Executors.newSingleThreadExecutor().execute(new TasksKiller(ti));
+	}
+	
+	private final static class TasksKiller implements Runnable, ITaskManager {
+		private final TaskInfo[] tasksInfo;
 
-			@Override
-			public void run() {
-				for (int index: indices) {
-					TaskInfo taskInfo = (TaskInfo) model.getElementAt(index);
-					taskInfo.task.stop();
-				}
+		public TasksKiller(TaskInfo[] ti) {
+			tasksInfo = ti;
+		}
+
+		@Override
+		public void run() {
+			for (TaskInfo ti: tasksInfo) {
+				ti.task.stop();
 			}
-		});
+		}
+		
 	}
 
 	/**
@@ -100,7 +119,7 @@ public class ServerMonitor extends javax.swing.JFrame {
 	 *            the command line arguments
 	 */
 	public static void main(String args[]) {
-		java.awt.EventQueue.invokeLater(new Runnable() {
+		java.awt.EventQueue.invokeLater(new UIRunnable() {
 			public void run() {
 				ServerMonitor mon = new ServerMonitor();
 				mon.start();
