@@ -7,7 +7,7 @@ public abstract class Command {
 	
 
 	@ThreadMarker
-	public interface Constructor {}
+	public interface Constructor extends Runnable {}
 	
 	@ThreadMarker
 	public interface Visitor {}

@@ -2,7 +2,6 @@ package ru.spbu.math.m04eiv.maths.tasks;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.google.code.annatasha.annotations.Constraint.Marked;
 import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 import ru.spbu.math.m04eiv.maths.matrix.MatrixDescriptor;
@@ -28,7 +27,6 @@ final class MuliplyMatricesTask extends Task {
 	private volatile int taskSize;
 	private Lock lock;
 	
-	@Marked(MatrixPool.Lock.class)
 	private volatile MatrixDescriptor dest;
 
 	public MuliplyMatricesTask(WorkersManager man, MatrixPool pool, MultiplyMatrices command) {

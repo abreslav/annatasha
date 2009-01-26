@@ -7,7 +7,6 @@ import ru.spbu.math.m04eiv.maths.protocol.Status;
 import ru.spbu.math.m04eiv.maths.tasks.IResourceManager;
 
 import com.google.code.annatasha.annotations.Method.ExecPermissions;
-import com.google.code.annatasha.annotations.Constraint.Marked;
 
 public final class MatrixDescriptor {
 
@@ -18,13 +17,11 @@ public final class MatrixDescriptor {
 	private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
 
 	@ExecPermissions( { IMatrixReader.class, IMatrixWriter.class })
-	@Marked(MatrixPool.Lock.class)
 	public Matrix getMatrix() {
 		return matrix;
 	}
 
 	@ExecPermissions( { IMatrixReader.class, IMatrixWriter.class })
-	@Marked(MatrixPool.Lock.class)
 	public void setStatus(Status status) {
 		this.status = status;
 	}
