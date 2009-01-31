@@ -29,7 +29,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 import org.xml.sax.helpers.DefaultHandler;
 
-import com.google.code.annatasha.validator.internal.build.ASTValidator;
+import com.google.code.annatasha.validator.internal.build.AnnatashaValidator;
 
 public class AnnatashaBuilder extends IncrementalProjectBuilder {
 
@@ -173,7 +173,7 @@ public class AnnatashaBuilder extends IncrementalProjectBuilder {
 		parser.setKind(ASTParser.K_COMPILATION_UNIT);
 		parser.setProject(project);
 		
-		ASTValidator requestor = new ASTValidator();
+		AnnatashaValidator requestor = new AnnatashaValidator();
 		parser.createASTs(units, new String[0], requestor, monitor);
 		requestor.validate();
 	}

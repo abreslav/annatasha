@@ -6,7 +6,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import ru.spbu.math.m04eiv.maths.tasks.IResourceManager;
 
-import com.google.code.annatasha.annotations.Scope;
 import com.google.code.annatasha.annotations.Field.ReadPermissions;
 import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
