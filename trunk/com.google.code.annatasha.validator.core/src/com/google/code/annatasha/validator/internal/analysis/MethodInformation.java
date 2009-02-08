@@ -10,7 +10,7 @@ import java.util.Collection;
  * 
  */
 public final class MethodInformation {
-
+	
 	private final TypeInformation type;
 	private final MethodInformation superDefinition;
 	private final MethodInformation[] superDeclarations;
@@ -41,6 +41,10 @@ public final class MethodInformation {
 
 	public MethodInformation[] getSuperDeclarations() {
 		return superDeclarations.clone();
+	}
+	
+	public boolean hasSuperDeclaration() {
+		return superDefinition != null || superDeclarations.length != 0;
 	}
 
 }

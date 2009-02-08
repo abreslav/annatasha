@@ -58,5 +58,20 @@ public final class Permissions implements Iterable<TypeInformation> {
 		}
 		return true;
 	}
+	
+	public static Permissions concat(final Permissions lhs, final Permissions rhs) {
+		if (lhs.isAnonymous() || rhs.isAnonymous()) {
+			return Anonymous;
+		}
+		ArrayList<TypeInformation> info = new ArrayList<TypeInformation>(lhs.types.size() + rhs.types.size());
+		info.addAll(lhs.types);
+		info.addAll(rhs.types);
+		return new Permissions(info);
+	}
+
+	public boolean contain(Permissions execPermissions) {
+		// TODO Auto-generated method stub
+		return false;
+	}
 
 }

@@ -1,11 +1,14 @@
 package com.google.code.annatasha.validator.internal.build;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.eclipse.core.resources.IResource;
 import org.eclipse.jdt.core.dom.ASTNode;
@@ -18,6 +21,7 @@ import org.eclipse.jdt.core.dom.IMemberValuePairBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
@@ -49,7 +53,13 @@ public class ValidationVisitor implements ITaskVisitor {
 	}
 
 	public void visit(MethodTaskNode methodTask) {
-		getMethodInfo(methodTask);
+		try {
+			getMethodInfo(methodTask);
+		} catch (CircularReferenceException e) {
+			// XXX FIX Circular references handling
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
 	}
 
@@ -92,14 +102,135 @@ public class ValidationVisitor implements ITaskVisitor {
 		return typeInformation;
 	}
 
-	private MethodInformation getMethodInfo(MethodTaskNode methodTask) {
+	private MethodInformation getMethodInfo(MethodTaskNode methodTask)
+			throws CircularReferenceException {
 		IMethodBinding binding = methodTask.getBinding();
+
+		ITypeBinding typeBinding = binding.getDeclaringClass();
+		TypeInformation typeInfo = getTypeInfo(getTypeTaskNode(methodTask
+				.getResource(), methodTask.getNode(), typeBinding));
 
 		MethodInformation result = (MethodInformation) resolved.get(binding);
 		if (result == null) {
+			MethodDeclaration node = null;
+			if (methodTask.getNode() instanceof MethodDeclaration
+					&& ((MethodDeclaration) methodTask.getNode())
+							.resolveBinding() == binding) {
+				node = (MethodDeclaration) methodTask.getNode();
+			}
 
+			Permissions typeInheritedExecPermissions = typeInfo
+					.getExecPermissions();
+			Permissions selfExecPermissions = Permissions.Anonymous;
+			for (IAnnotationBinding annotation : binding.getAnnotations()) {
+				if (ClassNames.EXEC_PERMISSIONS.equals(annotation
+						.getAnnotationType().getQualifiedName())) {
+					selfExecPermissions = processPermissionsAnnotation(
+							methodTask, annotation);
+				}
+			}
+
+			MethodInformation superDefinition = null;
+			for (ITypeBinding superClass = typeBinding.getSuperclass(); superClass != null; superClass = superClass
+					.getSuperclass()) {
+				for (IMethodBinding superMethodBinding : superClass
+						.getDeclaredMethods()) {
+					if (binding.overrides(superMethodBinding)) {
+						superDefinition = getMethodInfo(getMethodTaskNode(
+								methodTask.getResource(), methodTask.getNode(),
+								superMethodBinding));
+						break;
+					}
+				}
+			}
+
+			ArrayList<MethodInformation> superDeclarations = new ArrayList<MethodInformation>();
+			Queue<ITypeBinding> ifacesQueue = new ConcurrentLinkedQueue<ITypeBinding>(
+					Arrays.asList(typeBinding.getInterfaces()));
+			Set<ITypeBinding> ifacesInQueue = new HashSet<ITypeBinding>();
+			while (!ifacesQueue.isEmpty()) {
+				ITypeBinding iface = ifacesQueue.poll();
+				MethodInformation localSuperDeclaration = null;
+				for (IMethodBinding superMethodBinding : iface
+						.getDeclaredMethods()) {
+					if (binding.overrides(superMethodBinding)) {
+						localSuperDeclaration = getMethodInfo(getMethodTaskNode(
+								methodTask.getResource(), methodTask.getNode(),
+								superMethodBinding));
+						break;
+					}
+				}
+				if (localSuperDeclaration != null) {
+					superDeclarations.add(localSuperDeclaration);
+				} else {
+					Set<ITypeBinding> toAdd = new HashSet<ITypeBinding>(Arrays
+							.asList(iface.getInterfaces()));
+					toAdd.removeAll(ifacesInQueue);
+					ifacesQueue.addAll(toAdd);
+					ifacesInQueue.addAll(toAdd);
+				}
+			}
+
+			Permissions execPermissions = selfExecPermissions.isAnonymous() ? typeInheritedExecPermissions
+					: selfExecPermissions;
+			if (superDefinition != null) {
+				if (!execPermissions.contain(superDefinition.getExecPermissions())) {
+					reportError(methodTask.getResource(), methodTask.getNode(), Error.MethodPermissionsMustIncludeInherited);
+				}
+			}
+			for (MethodInformation superDeclaration : superDeclarations) {
+				if (!execPermissions.contain(superDeclaration.getExecPermissions())) {
+					reportError(methodTask.getResource(), methodTask.getNode(), Error.MethodPermissionsMustIncludeInherited);
+				}
+			}
+
+			// If we've got source, we should check access rules
+			if (node != null && node.getBody() != null) {
+				final Set<IVariableBinding> readAccess = new HashSet<IVariableBinding>();
+				final Set<IVariableBinding> writeAccess = new HashSet<IVariableBinding>();
+				final Set<IMethodBinding> execAccess = new HashSet<IMethodBinding>();
+
+				AccessBuilder builder = new AccessBuilder(readAccess,
+						writeAccess, execAccess);
+				node.getBody().accept(builder);
+
+				for (IVariableBinding read : readAccess) {
+					FieldInformation field = getFieldInfo(getFieldTaskNode(
+							methodTask.getResource(), methodTask.getNode(),
+							read));
+					if (!execPermissions
+							.mightAccess(field.getReadPermissions())) {
+						reportError(methodTask.getResource(), methodTask
+								.getNode(),
+								Error.MethodAttemptsToReadInaccessibleVariable);
+					}
+				}
+
+				for (IVariableBinding write : writeAccess) {
+					FieldInformation field = getFieldInfo(getFieldTaskNode(
+							methodTask.getResource(), methodTask.getNode(),
+							write));
+					if (!execPermissions.mightAccess(field
+							.getWritePermissions())) {
+						reportError(methodTask.getResource(), methodTask
+								.getNode(),
+								Error.MethodAttemptsToWriteInaccessibleVariable);
+					}
+				}
+
+				for (IMethodBinding exec : execAccess) {
+					MethodInformation method = getMethodInfo(getMethodTaskNode(
+							methodTask.getResource(), methodTask.getNode(),
+							exec));
+					if (!execPermissions.mightAccess(method
+							.getExecPermissions())) {
+						reportError(methodTask.getResource(), methodTask
+								.getNode(),
+								Error.MethodAttemptsToExecInaccessibleMethod);
+					}
+				}
+			}
 		}
-		// TODO Auto-generated method stub
 		return result;
 	}
 
@@ -132,16 +263,19 @@ public class ValidationVisitor implements ITaskVisitor {
 					if (ClassNames.READ_PERMISSIONS.equals(fqn)) {
 						try {
 							readPermissions = processPermissionsAnnotation(
-									fieldTask, annotation);
+									fieldTask, annotation
+											.resolveAnnotationBinding());
 						} catch (CircularReferenceException e) {
 						}
 					} else if (ClassNames.WRITE_PERMISSIONS.equals(fqn)) {
 						try {
 							writePermissions = processPermissionsAnnotation(
-									fieldTask, annotation);
+									fieldTask, annotation
+											.resolveAnnotationBinding());
 						} catch (CircularReferenceException e) {
 						}
 					}
+					;
 				}
 			}
 			result = new FieldInformation(information, readPermissions,
@@ -177,7 +311,7 @@ public class ValidationVisitor implements ITaskVisitor {
 					} else if (ClassNames.EXEC_PERMISSIONS.equals(fqn)) {
 						hasExecPermissions = true;
 						execPermissions = processPermissionsAnnotation(task,
-								annotation);
+								annotation.resolveAnnotationBinding());
 					}
 					if (isThreadMarker && hasExecPermissions && !bothFlag) {
 						bothFlag = true;
@@ -191,9 +325,10 @@ public class ValidationVisitor implements ITaskVisitor {
 	}
 
 	private Permissions processPermissionsAnnotation(TaskNode task,
-			final Annotation annotation) throws CircularReferenceException {
-		IAnnotationBinding annotationBinding = annotation
-				.resolveAnnotationBinding();
+			final IAnnotationBinding annotationBinding)
+			throws CircularReferenceException {
+		// IAnnotationBinding annotationBinding = annotation
+		// .resolveAnnotationBinding();
 		IMemberValuePairBinding memValueBinding = annotationBinding
 				.getAllMemberValuePairs()[0];
 		ITypeBinding[] markersBindings = (ITypeBinding[]) memValueBinding
@@ -317,6 +452,24 @@ public class ValidationVisitor implements ITaskVisitor {
 		return result;
 	}
 
+	private MethodTaskNode getMethodTaskNode(IResource resource, ASTNode node,
+			IMethodBinding binding) {
+		MethodTaskNode result = (MethodTaskNode) bindings.get(binding);
+		if (result == null) {
+			result = new MethodTaskNode(resource, node, binding);
+		}
+		return result;
+	}
+
+	private FieldTaskNode getFieldTaskNode(IResource resource, ASTNode node,
+			IVariableBinding binding) {
+		FieldTaskNode result = (FieldTaskNode) bindings.get(binding);
+		if (result == null) {
+			result = new FieldTaskNode(resource, node, binding);
+		}
+		return result;
+	}
+
 	private void reportError(IResource resource, ASTNode node, Error code) {
 		// TODO Auto-generated method stub
 
@@ -350,7 +503,10 @@ public class ValidationVisitor implements ITaskVisitor {
 				0x3,
 				"Thread marker may only extend thread markers or java.lang.Runnable"), ThreadMarkerNotRunnable(
 				0x4, "Thread marker must extend java.lang.Runnable"), NonThreadMarkerPermission(
-				0x5, "Only thread markers may specify permissions");
+				0x5, "Only thread markers may specify permissions"), MethodAttemptsToReadInaccessibleVariable(
+				0x6, "Method attempts to read inaccessible variable"), MethodAttemptsToWriteInaccessibleVariable(
+				0x7, "Method attempts to write inaccessible variable"), MethodAttemptsToExecInaccessibleMethod(
+				0x8, "Method attempts to execute inaccessible method"), MethodPermissionsMustIncludeInherited(0x9, "Method permissions must be wider than inherited permissions");
 
 		public final int code;
 		public final String message;
