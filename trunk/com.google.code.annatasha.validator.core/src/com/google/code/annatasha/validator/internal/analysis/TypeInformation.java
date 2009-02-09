@@ -4,6 +4,16 @@ import java.util.HashMap;
 
 public final class TypeInformation {
 
+	public final static class SuperInterfaceRecord {
+		public final TypeInformation superInterface;
+		public boolean typecastRestricted;
+
+		public SuperInterfaceRecord(TypeInformation superInterface) {
+			this.superInterface = superInterface;
+			this.typecastRestricted = false;
+		}
+	}
+
 	public final static TypeInformation Anonymous = new TypeInformation();
 
 	public static final int K_INTERFACE = 0;
@@ -21,7 +31,7 @@ public final class TypeInformation {
 	private final String fullyQualifiedName;
 
 	private final TypeInformation superClass;
-	private final TypeInformation[] superInterfaces;
+	private final SuperInterfaceRecord[] superInterfaces;
 
 	private HashMap<TypeInformation, Boolean> assignmentMap;
 
@@ -32,20 +42,25 @@ public final class TypeInformation {
 
 		this.flags = F_MARKER | K_INTERFACE;
 		this.superClass = null;
-		this.superInterfaces = new TypeInformation[0];
+		this.superInterfaces = new SuperInterfaceRecord[0];
 		this.fullyQualifiedName = "<anonymous marker>";
 		this.execPermissions = Permissions.Anonymous;
 	}
 
 	public TypeInformation(String fullyQualifiedName, int flags,
-			TypeInformation superClass, TypeInformation[] superInterfaces, Permissions execPermissions) {
+			TypeInformation superClass, TypeInformation[] superInterfaces,
+			Permissions execPermissions) {
 		this.anonymous = false;
 		this.fullyQualifiedName = fullyQualifiedName;
 
 		this.flags = flags;
 		this.superClass = superClass;
-		this.superInterfaces = superInterfaces.clone();
+		this.superInterfaces = new SuperInterfaceRecord[superInterfaces.length];
 		this.execPermissions = execPermissions;
+		for (int i = 0; i < superInterfaces.length; ++i) {
+			this.superInterfaces[i] = new SuperInterfaceRecord(
+					superInterfaces[i]);
+		}
 	}
 
 	public boolean isMarkerAssignmentCompatible(TypeInformation to) {
@@ -60,8 +75,9 @@ public final class TypeInformation {
 		Boolean result = assignmentMap.get(to);
 		if (result == null) {
 			result = false;
-			for (TypeInformation superInterface : superInterfaces) {
-				if (superInterface.isMarkerAssignmentCompatible(to)) {
+			for (SuperInterfaceRecord superInterfaceRecord : superInterfaces) {
+				if (superInterfaceRecord.superInterface
+						.isMarkerAssignmentCompatible(to)) {
 					result = true;
 					break;
 				}
@@ -80,7 +96,7 @@ public final class TypeInformation {
 		return superClass;
 	}
 
-	public TypeInformation[] getSuperInterfaces() {
+	public SuperInterfaceRecord[] getSuperInterfaces() {
 		return superInterfaces;
 	}
 

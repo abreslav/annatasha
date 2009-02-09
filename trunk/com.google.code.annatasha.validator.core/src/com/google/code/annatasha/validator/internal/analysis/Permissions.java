@@ -69,9 +69,4 @@ public final class Permissions implements Iterable<TypeInformation> {
 		return new Permissions(info);
 	}
 
-	public boolean contain(Permissions execPermissions) {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
 }
