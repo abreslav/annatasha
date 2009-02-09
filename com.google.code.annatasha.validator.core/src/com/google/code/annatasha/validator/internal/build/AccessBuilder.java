@@ -66,6 +66,23 @@ public class AccessBuilder extends ASTVisitor {
 		return false;
 	}
 
+	@Override
+	public boolean visit(AssertStatement node) {
+		verify(node.getExpression(), true, false);
+		if (node.getMessage() != null) {
+			verify(node.getExpression(), true, false);
+		}
+		return false;
+	}
+	
+	@Override
+	public boolean visit(Assignment node) {
+		verify(node.getLeftHandSide(), node.getOperator() != Operator.ASSIGN,
+				true);
+		verify(node.getRightHandSide(), true, false);
+		return false;
+	}
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public boolean visit(ClassInstanceCreation node) {
@@ -80,28 +97,11 @@ public class AccessBuilder extends ASTVisitor {
 	}
 	
 	@Override
-	public boolean visit(AssertStatement node) {
-		verify(node.getExpression(), true, false);
-		if (node.getMessage() != null) {
-			verify(node.getExpression(), true, false);
-		}
-		return false;
-	}
-	
-	@Override
 	public boolean visit(VariableDeclarationFragment node) {
 		verify(node.getInitializer(), true, false);
 		return super.visit(node);
 	}
 	
-	@Override
-	public boolean visit(Assignment node) {
-		verify(node.getLeftHandSide(), node.getOperator() != Operator.ASSIGN,
-				true);
-		verify(node.getRightHandSide(), true, false);
-		return false;
-	}
-
 	@Override
 	public boolean visit(FieldAccess node) {
 		verify(node.getExpression(), true, false);

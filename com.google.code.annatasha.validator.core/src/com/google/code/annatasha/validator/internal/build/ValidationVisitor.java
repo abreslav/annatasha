@@ -30,6 +30,7 @@ import com.google.code.annatasha.validator.internal.analysis.FieldInformation;
 import com.google.code.annatasha.validator.internal.analysis.MethodInformation;
 import com.google.code.annatasha.validator.internal.analysis.Permissions;
 import com.google.code.annatasha.validator.internal.analysis.TypeInformation;
+import com.google.code.annatasha.validator.internal.analysis.TypeInformation.SuperInterfaceRecord;
 
 public class ValidationVisitor implements ITaskVisitor {
 
@@ -37,6 +38,8 @@ public class ValidationVisitor implements ITaskVisitor {
 	private final Set<IBinding> underConstruction = new HashSet<IBinding>();
 
 	private final Map<IBinding, TaskNode> bindings;
+
+	private ITypeBinding runnableBinding;
 
 	public ValidationVisitor(final Map<IBinding, TaskNode> bindings) {
 		this.bindings = bindings;
@@ -54,7 +57,8 @@ public class ValidationVisitor implements ITaskVisitor {
 
 	public void visit(MethodTaskNode methodTask) {
 		try {
-			getMethodInfo(methodTask);
+			getHeadMethodInfo(methodTask);
+			getBodyMethodInfo(methodTask);
 		} catch (CircularReferenceException e) {
 			// XXX FIX Circular references handling
 			// TODO Auto-generated catch block
@@ -64,7 +68,13 @@ public class ValidationVisitor implements ITaskVisitor {
 	}
 
 	public void visit(FieldTaskNode fieldTask) {
-		getFieldInfo(fieldTask);
+		try {
+			getFieldInfo(fieldTask);
+		} catch (CircularReferenceException e) {
+			// XXX FIX Circular references handling
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	private TypeInformation getTypeInfo(TypeTaskNode task)
@@ -92,6 +102,9 @@ public class ValidationVisitor implements ITaskVisitor {
 				typeInformation = new TypeInformation(binding
 						.getQualifiedName(), flags[0], superClassInformation,
 						interfacesInformation, execPermissions);
+				if (ClassNames.RUNNABLE.equals(binding.getQualifiedName())) {
+					runnableBinding = binding;
+				}
 				resolved.put(binding, typeInformation);
 
 			} finally {
@@ -102,7 +115,8 @@ public class ValidationVisitor implements ITaskVisitor {
 		return typeInformation;
 	}
 
-	private MethodInformation getMethodInfo(MethodTaskNode methodTask)
+	@SuppressWarnings("unchecked")
+	private MethodInformation getHeadMethodInfo(MethodTaskNode methodTask)
 			throws CircularReferenceException {
 		IMethodBinding binding = methodTask.getBinding();
 
@@ -112,174 +126,361 @@ public class ValidationVisitor implements ITaskVisitor {
 
 		MethodInformation result = (MethodInformation) resolved.get(binding);
 		if (result == null) {
-			MethodDeclaration node = null;
-			if (methodTask.getNode() instanceof MethodDeclaration
-					&& ((MethodDeclaration) methodTask.getNode())
-							.resolveBinding() == binding) {
-				node = (MethodDeclaration) methodTask.getNode();
+			if (underConstruction.contains(binding)) {
+				throw new CircularReferenceException(binding);
 			}
+			try {
+				underConstruction.add(binding);
 
-			Permissions typeInheritedExecPermissions = typeInfo
-					.getExecPermissions();
-			Permissions selfExecPermissions = Permissions.Anonymous;
-			for (IAnnotationBinding annotation : binding.getAnnotations()) {
-				if (ClassNames.EXEC_PERMISSIONS.equals(annotation
-						.getAnnotationType().getQualifiedName())) {
-					selfExecPermissions = processPermissionsAnnotation(
-							methodTask, annotation);
+				boolean isRunnableRun = typeBinding
+						.isAssignmentCompatible(runnableBinding)
+						&& binding.overrides(runnableBinding
+								.getDeclaredMethods()[0]);
+
+				Permissions execPermissions = getExecPermissions(methodTask,
+						binding, typeInfo);
+
+				final boolean[] threadStarterFlags = new boolean[binding
+						.getParameterTypes().length];
+				List<FieldDeclaration> params = null;
+				if (methodTask.getNode() instanceof MethodDeclaration) {
+					params = (List<FieldDeclaration>) methodTask.getNode()
+							.getStructuralProperty(
+									MethodDeclaration.PARAMETERS_PROPERTY);
 				}
-			}
-
-			MethodInformation superDefinition = null;
-			for (ITypeBinding superClass = typeBinding.getSuperclass(); superClass != null; superClass = superClass
-					.getSuperclass()) {
-				for (IMethodBinding superMethodBinding : superClass
-						.getDeclaredMethods()) {
-					if (binding.overrides(superMethodBinding)) {
-						superDefinition = getMethodInfo(getMethodTaskNode(
-								methodTask.getResource(), methodTask.getNode(),
-								superMethodBinding));
-						break;
-					}
-				}
-			}
-
-			ArrayList<MethodInformation> superDeclarations = new ArrayList<MethodInformation>();
-			Queue<ITypeBinding> ifacesQueue = new ConcurrentLinkedQueue<ITypeBinding>(
-					Arrays.asList(typeBinding.getInterfaces()));
-			Set<ITypeBinding> ifacesInQueue = new HashSet<ITypeBinding>();
-			while (!ifacesQueue.isEmpty()) {
-				ITypeBinding iface = ifacesQueue.poll();
-				MethodInformation localSuperDeclaration = null;
-				for (IMethodBinding superMethodBinding : iface
-						.getDeclaredMethods()) {
-					if (binding.overrides(superMethodBinding)) {
-						localSuperDeclaration = getMethodInfo(getMethodTaskNode(
-								methodTask.getResource(), methodTask.getNode(),
-								superMethodBinding));
-						break;
-					}
-				}
-				if (localSuperDeclaration != null) {
-					superDeclarations.add(localSuperDeclaration);
-				} else {
-					Set<ITypeBinding> toAdd = new HashSet<ITypeBinding>(Arrays
-							.asList(iface.getInterfaces()));
-					toAdd.removeAll(ifacesInQueue);
-					ifacesQueue.addAll(toAdd);
-					ifacesInQueue.addAll(toAdd);
-				}
-			}
-
-			Permissions execPermissions = selfExecPermissions.isAnonymous() ? typeInheritedExecPermissions
-					: selfExecPermissions;
-			if (superDefinition != null) {
-				if (!execPermissions.contain(superDefinition.getExecPermissions())) {
-					reportError(methodTask.getResource(), methodTask.getNode(), Error.MethodPermissionsMustIncludeInherited);
-				}
-			}
-			for (MethodInformation superDeclaration : superDeclarations) {
-				if (!execPermissions.contain(superDeclaration.getExecPermissions())) {
-					reportError(methodTask.getResource(), methodTask.getNode(), Error.MethodPermissionsMustIncludeInherited);
-				}
-			}
-
-			// If we've got source, we should check access rules
-			if (node != null && node.getBody() != null) {
-				final Set<IVariableBinding> readAccess = new HashSet<IVariableBinding>();
-				final Set<IVariableBinding> writeAccess = new HashSet<IVariableBinding>();
-				final Set<IMethodBinding> execAccess = new HashSet<IMethodBinding>();
-
-				AccessBuilder builder = new AccessBuilder(readAccess,
-						writeAccess, execAccess);
-				node.getBody().accept(builder);
-
-				for (IVariableBinding read : readAccess) {
-					FieldInformation field = getFieldInfo(getFieldTaskNode(
-							methodTask.getResource(), methodTask.getNode(),
-							read));
-					if (!execPermissions
-							.mightAccess(field.getReadPermissions())) {
-						reportError(methodTask.getResource(), methodTask
-								.getNode(),
-								Error.MethodAttemptsToReadInaccessibleVariable);
+				for (int i = 0; i < threadStarterFlags.length; ++i) {
+					IAnnotationBinding[] paramAnnotations = binding
+							.getParameterAnnotations(i);
+					for (IAnnotationBinding paramAnnotation : paramAnnotations) {
+						if (ClassNames.THREAD_STARTER.equals(paramAnnotation
+								.getAnnotationType().getQualifiedName())) {
+							TypeInformation paramTypeInfo = getTypeInfo(getTypeTaskNode(
+									methodTask.getResource(), methodTask
+											.getNode(), binding
+											.getParameterTypes()[i]));
+							if (!paramTypeInfo.isRunnable()) {
+								ASTNode errNode = methodTask.getNode();
+								if (params != null)
+									errNode = params.get(i);
+								reportError(methodTask.getResource(), errNode,
+										Error.NonRunnableArgumentThreadStarter);
+							} else {
+								threadStarterFlags[i] = true;
+							}
+						}
 					}
 				}
 
-				for (IVariableBinding write : writeAccess) {
-					FieldInformation field = getFieldInfo(getFieldTaskNode(
-							methodTask.getResource(), methodTask.getNode(),
-							write));
-					if (!execPermissions.mightAccess(field
-							.getWritePermissions())) {
-						reportError(methodTask.getResource(), methodTask
-								.getNode(),
-								Error.MethodAttemptsToWriteInaccessibleVariable);
-					}
-				}
+				MethodInformation superDefinition = getSuperDefinition(
+						methodTask, binding, typeBinding);
 
-				for (IMethodBinding exec : execAccess) {
-					MethodInformation method = getMethodInfo(getMethodTaskNode(
-							methodTask.getResource(), methodTask.getNode(),
-							exec));
-					if (!execPermissions.mightAccess(method
-							.getExecPermissions())) {
-						reportError(methodTask.getResource(), methodTask
-								.getNode(),
-								Error.MethodAttemptsToExecInaccessibleMethod);
-					}
-				}
+				HashMap<TypeInformation, TypeInformation> declarationTypeToParentType = new HashMap<TypeInformation, TypeInformation>();
+				ArrayList<MethodInformation> superDeclarations = getSuperDeclarations(
+						methodTask, binding, typeBinding,
+						declarationTypeToParentType);
+
+				boolean permissionsDowncast = validateExecPermissions(
+						methodTask, typeInfo, isRunnableRun, execPermissions,
+						superDefinition, superDeclarations,
+						declarationTypeToParentType);
+
+				result = new MethodInformation(typeInfo, superDefinition,
+						superDeclarations, execPermissions,
+						permissionsDowncast, threadStarterFlags);
+
+				resolved.put(binding, result);
+			} finally {
+				underConstruction.remove(binding);
 			}
 		}
 		return result;
 	}
 
+	/**
+	 * @param methodTask
+	 * @param typeInfo
+	 * @param isRunnableRun
+	 * @param execPermissions
+	 * @param superDefinition
+	 * @param superDeclarations
+	 * @param declarationTypeToParentType
+	 * @return
+	 */
+	private boolean validateExecPermissions(
+			MethodTaskNode methodTask,
+			TypeInformation typeInfo,
+			boolean isRunnableRun,
+			Permissions execPermissions,
+			MethodInformation superDefinition,
+			ArrayList<MethodInformation> superDeclarations,
+			HashMap<TypeInformation, TypeInformation> declarationTypeToParentType) {
+		if (superDefinition != null) {
+			if (!superDefinition.getExecPermissions().mightAccess(
+					execPermissions)) {
+				reportError(methodTask.getResource(), methodTask.getNode(),
+						Error.MethodPermissionsMustIncludeInherited);
+			}
+		}
+
+		HashSet<TypeInformation> restrictedUpcast = new HashSet<TypeInformation>();
+		for (MethodInformation superDeclaration : superDeclarations) {
+			if (!superDeclaration.getExecPermissions().mightAccess(
+					execPermissions)) {
+				if (!isRunnableRun) {
+					reportError(methodTask.getResource(), methodTask.getNode(),
+							Error.MethodPermissionsMustIncludeInherited);
+				} else {
+					restrictedUpcast.add(declarationTypeToParentType
+							.get(superDeclaration));
+				}
+			}
+		}
+
+		for (SuperInterfaceRecord i : typeInfo.getSuperInterfaces()) {
+			i.typecastRestricted = restrictedUpcast.contains(i);
+		}
+
+		return restrictedUpcast.size() != 0;
+	}
+
+	/**
+	 * @param methodTask
+	 * @param binding
+	 * @param typeBinding
+	 * @param declarationTypeToParentType
+	 * @return
+	 * @throws CircularReferenceException
+	 */
+	private ArrayList<MethodInformation> getSuperDeclarations(
+			MethodTaskNode methodTask,
+			IMethodBinding binding,
+			ITypeBinding typeBinding,
+			final HashMap<TypeInformation, TypeInformation> declarationTypeToParentType)
+			throws CircularReferenceException {
+
+		class Pair {
+			public final ITypeBinding type;
+			public final ITypeBinding parent;
+
+			public Pair(ITypeBinding type, ITypeBinding parent) {
+				this.type = type;
+				this.parent = parent;
+			}
+
+			@Override
+			public int hashCode() {
+				return type.hashCode();
+			}
+
+			@Override
+			public boolean equals(Object obj) {
+				if (obj == this)
+					return true;
+				if (obj instanceof Pair) {
+					return type.equals(((Pair) obj).type);
+				}
+				return false;
+			}
+		}
+
+		ArrayList<MethodInformation> superDeclarations = new ArrayList<MethodInformation>();
+		Queue<Pair> ifacesQueue = new ConcurrentLinkedQueue<Pair>();
+		for (ITypeBinding t : typeBinding.getInterfaces()) {
+			ifacesQueue.add(new Pair(t, t));
+		}
+		Set<ITypeBinding> ifacesInQueue = new HashSet<ITypeBinding>();
+		while (!ifacesQueue.isEmpty()) {
+			Pair pair = ifacesQueue.poll();
+			ITypeBinding iface = pair.type;
+			ITypeBinding par = pair.parent;
+
+			MethodInformation localSuperDeclaration = null;
+			for (IMethodBinding superMethodBinding : iface.getDeclaredMethods()) {
+				if (binding.overrides(superMethodBinding)) {
+					localSuperDeclaration = getHeadMethodInfo(getMethodTaskNode(
+							methodTask.getResource(), methodTask.getNode(),
+							superMethodBinding));
+					break;
+				}
+			}
+			if (localSuperDeclaration != null) {
+				superDeclarations.add(localSuperDeclaration);
+				declarationTypeToParentType.put(
+						localSuperDeclaration.getType(),
+						(TypeInformation) resolved.get(par));
+			} else {
+				Set<ITypeBinding> toAdd = new HashSet<ITypeBinding>(Arrays
+						.asList(iface.getInterfaces()));
+				toAdd.removeAll(ifacesInQueue);
+				ifacesInQueue.addAll(toAdd);
+				for (ITypeBinding i : toAdd) {
+					ifacesQueue.add(new Pair(i, par));
+				}
+			}
+		}
+		return superDeclarations;
+	}
+
+	/**
+	 * @param methodTask
+	 * @param binding
+	 * @param typeBinding
+	 * @return
+	 * @throws CircularReferenceException
+	 */
+	private MethodInformation getSuperDefinition(MethodTaskNode methodTask,
+			IMethodBinding binding, ITypeBinding typeBinding)
+			throws CircularReferenceException {
+		MethodInformation superDefinition = null;
+		for (ITypeBinding superClass = typeBinding.getSuperclass(); superClass != null; superClass = superClass
+				.getSuperclass()) {
+			for (IMethodBinding superMethodBinding : superClass
+					.getDeclaredMethods()) {
+				if (binding.overrides(superMethodBinding)) {
+					superDefinition = getHeadMethodInfo(getMethodTaskNode(
+							methodTask.getResource(), methodTask.getNode(),
+							superMethodBinding));
+					break;
+				}
+			}
+		}
+		return superDefinition;
+	}
+
+	/**
+	 * @param methodTask
+	 * @param binding
+	 * @param typeInfo
+	 * @return
+	 * @throws CircularReferenceException
+	 */
+	private Permissions getExecPermissions(MethodTaskNode methodTask,
+			IMethodBinding binding, TypeInformation typeInfo)
+			throws CircularReferenceException {
+		Permissions typeInheritedExecPermissions = typeInfo
+				.getExecPermissions();
+		Permissions selfExecPermissions = Permissions.Anonymous;
+		for (IAnnotationBinding annotation : binding.getAnnotations()) {
+			if (ClassNames.EXEC_PERMISSIONS.equals(annotation
+					.getAnnotationType().getQualifiedName())) {
+				selfExecPermissions = processPermissionsAnnotation(methodTask,
+						annotation);
+				break;
+			}
+		}
+		Permissions execPermissions = selfExecPermissions.isAnonymous() ? typeInheritedExecPermissions
+				: selfExecPermissions;
+		return execPermissions;
+	}
+
+	private void getBodyMethodInfo(MethodTaskNode methodTask)
+			throws CircularReferenceException {
+		MethodInformation info = getHeadMethodInfo(methodTask);
+
+		IMethodBinding binding = methodTask.getBinding();
+		MethodDeclaration node = null;
+		if (methodTask.getNode() instanceof MethodDeclaration
+				&& ((MethodDeclaration) methodTask.getNode()).resolveBinding() == binding) {
+			node = (MethodDeclaration) methodTask.getNode();
+		}
+		Permissions execPermissions = info.getExecPermissions();
+
+		// If we've got source, we should check access rules
+		if (node != null && node.getBody() != null) {
+			final Set<IVariableBinding> readAccess = new HashSet<IVariableBinding>();
+			final Set<IVariableBinding> writeAccess = new HashSet<IVariableBinding>();
+			final Set<IMethodBinding> execAccess = new HashSet<IMethodBinding>();
+
+			AccessBuilder builder = new AccessBuilder(readAccess, writeAccess,
+					execAccess);
+			node.getBody().accept(builder);
+
+			for (IVariableBinding read : readAccess) {
+				FieldInformation field = getFieldInfo(getFieldTaskNode(
+						methodTask.getResource(), methodTask.getNode(), read));
+				if (!execPermissions.mightAccess(field.getReadPermissions())) {
+					reportError(methodTask.getResource(), methodTask.getNode(),
+							Error.MethodAttemptsToReadInaccessibleVariable);
+				}
+			}
+
+			for (IVariableBinding write : writeAccess) {
+				FieldInformation field = getFieldInfo(getFieldTaskNode(
+						methodTask.getResource(), methodTask.getNode(), write));
+				if (!execPermissions.mightAccess(field.getWritePermissions())) {
+					reportError(methodTask.getResource(), methodTask.getNode(),
+							Error.MethodAttemptsToWriteInaccessibleVariable);
+				}
+			}
+
+			for (IMethodBinding exec : execAccess) {
+				MethodInformation method = getHeadMethodInfo(getMethodTaskNode(
+						methodTask.getResource(), methodTask.getNode(), exec));
+				if (!execPermissions.mightAccess(method.getExecPermissions())) {
+					reportError(methodTask.getResource(), methodTask.getNode(),
+							Error.MethodAttemptsToExecInaccessibleMethod);
+				}
+			}
+		}
+	}
+
 	@SuppressWarnings("unchecked")
-	private FieldInformation getFieldInfo(FieldTaskNode fieldTask) {
+	private FieldInformation getFieldInfo(FieldTaskNode fieldTask)
+			throws CircularReferenceException {
 		IVariableBinding binding = fieldTask.getBinding();
 
 		FieldInformation result = (FieldInformation) resolved.get(binding);
 		if (result == null) {
-			VariableDeclarationFragment fragment = (VariableDeclarationFragment) fieldTask
-					.getNode();
-			FieldDeclaration field = (FieldDeclaration) fragment.getParent();
 
-			ITypeBinding type = binding.getType();
-			TypeInformation information = null;
-			try {
-				information = getTypeInfo(getTypeTaskNode(fieldTask
-						.getResource(), fieldTask.getNode(), type));
-			} catch (CircularReferenceException e) {
+			if (underConstruction.contains(binding)) {
+				throw new CircularReferenceException(binding);
 			}
-			Permissions readPermissions = Permissions.Anonymous;
-			Permissions writePermissions = Permissions.Anonymous;
+			try {
+				VariableDeclarationFragment fragment = (VariableDeclarationFragment) fieldTask
+						.getNode();
+				FieldDeclaration field = (FieldDeclaration) fragment
+						.getParent();
 
-			List<IExtendedModifier> modifiers = field.modifiers();
-			for (IExtendedModifier modifier : modifiers) {
-				if (modifier instanceof Annotation) {
-					Annotation annotation = (Annotation) modifier;
-					final String fqn = annotation.getTypeName()
-							.getFullyQualifiedName();
-					if (ClassNames.READ_PERMISSIONS.equals(fqn)) {
-						try {
-							readPermissions = processPermissionsAnnotation(
-									fieldTask, annotation
-											.resolveAnnotationBinding());
-						} catch (CircularReferenceException e) {
-						}
-					} else if (ClassNames.WRITE_PERMISSIONS.equals(fqn)) {
-						try {
-							writePermissions = processPermissionsAnnotation(
-									fieldTask, annotation
-											.resolveAnnotationBinding());
-						} catch (CircularReferenceException e) {
+				ITypeBinding type = binding.getType();
+				TypeInformation information = null;
+				try {
+					information = getTypeInfo(getTypeTaskNode(fieldTask
+							.getResource(), fieldTask.getNode(), type));
+				} catch (CircularReferenceException e) {
+				}
+				Permissions readPermissions = Permissions.Anonymous;
+				Permissions writePermissions = Permissions.Anonymous;
+
+				List<IExtendedModifier> modifiers = field.modifiers();
+				for (IExtendedModifier modifier : modifiers) {
+					if (modifier instanceof Annotation) {
+						Annotation annotation = (Annotation) modifier;
+						final String fqn = annotation.getTypeName()
+								.getFullyQualifiedName();
+						if (ClassNames.READ_PERMISSIONS.equals(fqn)) {
+							try {
+								readPermissions = processPermissionsAnnotation(
+										fieldTask, annotation
+												.resolveAnnotationBinding());
+							} catch (CircularReferenceException e) {
+							}
+						} else if (ClassNames.WRITE_PERMISSIONS.equals(fqn)) {
+							try {
+								writePermissions = processPermissionsAnnotation(
+										fieldTask, annotation
+												.resolveAnnotationBinding());
+							} catch (CircularReferenceException e) {
+							}
 						}
 					}
-					;
 				}
+				result = new FieldInformation(information, readPermissions,
+						writePermissions);
+
+				resolved.put(binding, result);
+			} finally {
+				underConstruction.remove(binding);
 			}
-			result = new FieldInformation(information, readPermissions,
-					writePermissions);
 
 		}
 		return result;
@@ -475,16 +676,6 @@ public class ValidationVisitor implements ITaskVisitor {
 
 	}
 
-	// private TypeDeclaration getTypeDeclarationNode(final ITypeBinding
-	// binding,
-	// final ASTNode node) {
-	// TaskNode taskNode = bindings.get(binding);
-	// if (taskNode != null) {
-	// return (TypeDeclaration) taskNode.getNode();
-	// }
-	// return null;
-	// }
-
 	private static interface ClassNames {
 		final static String THREAD_MARKER = "com.google.code.annatasha.annotations.ThreadMarker";
 		final static String THREAD_STARTER = "com.google.code.annatasha.annotations.ThreadStarter";
@@ -506,7 +697,10 @@ public class ValidationVisitor implements ITaskVisitor {
 				0x5, "Only thread markers may specify permissions"), MethodAttemptsToReadInaccessibleVariable(
 				0x6, "Method attempts to read inaccessible variable"), MethodAttemptsToWriteInaccessibleVariable(
 				0x7, "Method attempts to write inaccessible variable"), MethodAttemptsToExecInaccessibleMethod(
-				0x8, "Method attempts to execute inaccessible method"), MethodPermissionsMustIncludeInherited(0x9, "Method permissions must be wider than inherited permissions");
+				0x8, "Method attempts to execute inaccessible method"), MethodPermissionsMustIncludeInherited(
+				0x9,
+				"Method permissions must be wider than inherited permissions"), NonRunnableArgumentThreadStarter(
+				0xA, "Non-runnable argument may not be thread starter");
 
 		public final int code;
 		public final String message;
