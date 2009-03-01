@@ -31,10 +31,10 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.Assignment.Operator;
 
-import com.google.code.annatasha.validator.internal.analysis.MethodInformation;
-import com.google.code.annatasha.validator.internal.analysis.TypeInformation;
+import com.google.code.annatasha.validator.internal.structures.MethodInformation;
+import com.google.code.annatasha.validator.internal.structures.TypeInformation;
 
-public class AccessBuilder extends ASTVisitor {
+public class MethodBodyVerifier extends ASTVisitor {
 
 	private final ValidationVisitor visitor;
 	private final IResource resource;
@@ -50,7 +50,7 @@ public class AccessBuilder extends ASTVisitor {
 	
 	private CoreException exception = null;
 
-	public AccessBuilder(ValidationVisitor visitor, IResource resource,
+	public MethodBodyVerifier(ValidationVisitor visitor, IResource resource,
 			final Set<IVariableBinding> readAccess,
 			final Set<IVariableBinding> writeAccess,
 			final Set<IMethodBinding> execAccess) {

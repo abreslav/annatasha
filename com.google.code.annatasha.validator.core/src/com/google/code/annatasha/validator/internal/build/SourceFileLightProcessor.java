@@ -14,7 +14,12 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
-final class AnnatashaVisitor extends ASTVisitor {
+import com.google.code.annatasha.validator.internal.build.tasks.FieldTaskNode;
+import com.google.code.annatasha.validator.internal.build.tasks.MethodTaskNode;
+import com.google.code.annatasha.validator.internal.build.tasks.TaskNode;
+import com.google.code.annatasha.validator.internal.build.tasks.TypeTaskNode;
+
+final class SourceFileLightProcessor extends ASTVisitor {
 
 	private final IResource resource;
 	private final Set<TaskNode> tasks;
@@ -23,7 +28,7 @@ final class AnnatashaVisitor extends ASTVisitor {
 	 * @param resource
 	 * @param listener
 	 */
-	public AnnatashaVisitor(IResource resource, final Set<TaskNode> tasks) {
+	public SourceFileLightProcessor(IResource resource, final Set<TaskNode> tasks) {
 		this.resource = resource;
 		this.tasks = tasks;
 	}
