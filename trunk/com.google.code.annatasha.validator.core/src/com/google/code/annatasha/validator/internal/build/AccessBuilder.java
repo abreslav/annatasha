@@ -1,18 +1,24 @@
 package com.google.code.annatasha.validator.internal.build;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.eclipse.core.resources.IResource;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.AssertStatement;
 import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.QualifiedName;
@@ -25,24 +31,43 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.Assignment.Operator;
 
+import com.google.code.annatasha.validator.internal.analysis.MethodInformation;
+import com.google.code.annatasha.validator.internal.analysis.TypeInformation;
+
 public class AccessBuilder extends ASTVisitor {
+
+	private final ValidationVisitor visitor;
+	private final IResource resource;
 
 	private final Set<IVariableBinding> readAccess;
 	private final Set<IVariableBinding> writeAccess;
 	private final Set<IMethodBinding> execAccess;
-	
+
 	private int verifiers = 0;
 
 	private boolean readAccessFlag;
 	private boolean writeAccessFlag;
+	
+	private CoreException exception = null;
 
-	public AccessBuilder(final Set<IVariableBinding> readAccess,
+	public AccessBuilder(ValidationVisitor visitor, IResource resource,
+			final Set<IVariableBinding> readAccess,
 			final Set<IVariableBinding> writeAccess,
 			final Set<IMethodBinding> execAccess) {
+		this.visitor = visitor;
+		this.resource = resource;
+
 		this.readAccess = readAccess;
 		this.writeAccess = writeAccess;
 
 		this.execAccess = execAccess;
+	}
+	
+	public void buildAccessStructures(ASTNode node) throws CoreException {
+		exception = null;
+		node.accept(this);
+		if (exception != null)
+			throw exception;
 	}
 
 	// STOP METHODS
@@ -52,12 +77,12 @@ public class AccessBuilder extends ASTVisitor {
 	public boolean visit(AnonymousClassDeclaration node) {
 		return false;
 	}
-	
+
 	@Override
 	public boolean visit(TypeDeclaration node) {
 		return false;
 	}
-	
+
 	// EXPRESSION PROCESSING METHODS
 	@Override
 	public boolean visit(ArrayAccess node) {
@@ -74,13 +99,39 @@ public class AccessBuilder extends ASTVisitor {
 		}
 		return false;
 	}
-	
+
 	@Override
 	public boolean visit(Assignment node) {
 		verify(node.getLeftHandSide(), node.getOperator() != Operator.ASSIGN,
 				true);
 		verify(node.getRightHandSide(), true, false);
+
+		try {
+			ITypeBinding lhs = node.getLeftHandSide().resolveTypeBinding();
+			ITypeBinding rhs = node.getRightHandSide().resolveTypeBinding();
+			validateAssignment(node, lhs, rhs);
+		} catch (CircularReferenceException e) {
+			// XXX error handler!!!
+		} catch (CoreException e) {
+			exception = e;
+		}
 		return false;
+	}
+
+	@Override
+	public boolean visit(CastExpression node) {
+		ITypeBinding src = node.getExpression().resolveTypeBinding();
+		ITypeBinding dest = node.resolveTypeBinding();
+		try {
+			validateAssignment(node, dest, src);
+		} catch (CircularReferenceException e) {
+			// XXX error handler!!!
+		} catch (CoreException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return true;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -95,13 +146,15 @@ public class AccessBuilder extends ASTVisitor {
 		}
 		return false;
 	}
-	
+
 	@Override
 	public boolean visit(VariableDeclarationFragment node) {
-		verify(node.getInitializer(), true, false);
+		if (node.getInitializer() != null) {
+			verify(node.getInitializer(), true, false);
+		}
 		return super.visit(node);
 	}
-	
+
 	@Override
 	public boolean visit(FieldAccess node) {
 		verify(node.getExpression(), true, false);
@@ -114,15 +167,30 @@ public class AccessBuilder extends ASTVisitor {
 	@SuppressWarnings("unchecked")
 	@Override
 	public boolean visit(MethodInvocation node) {
-		verify(node.getExpression(), true, false);
+		IMethodBinding binding = node.resolveMethodBinding();
+		MethodInformation info = visitor.getMethodInfo(binding);
+		// boolean[] threadStarters = info.getThreadStarterFlags();
+
+		if (node.getExpression() != null) {
+			verify(node.getExpression(), true, false);
+		}
 
 		List<Expression> params = (List<Expression>) node
 				.getStructuralProperty(MethodInvocation.ARGUMENTS_PROPERTY);
+		List<ITypeBinding> paramsTypes = (List<ITypeBinding>) node
+				.getStructuralProperty(MethodInvocation.TYPE_ARGUMENTS_PROPERTY);
+		Iterator<ITypeBinding> paramTypeIterator = paramsTypes.iterator();
+		int i = 0;
 		for (Expression param : params) {
-			verify(param, true, false);
+			// XXX
+			// ITypeBinding paramType = paramTypeIterator.next();
+			// verify(param, true, false);
+			// if (!threadStarters[i++]) {
+			// validateAssignment(param, paramType, param
+			// .resolveTypeBinding());
+			// }
 		}
 
-		IMethodBinding binding = node.resolveMethodBinding();
 		execAccess.add(binding);
 		return false;
 	}
@@ -151,10 +219,10 @@ public class AccessBuilder extends ASTVisitor {
 	@SuppressWarnings("unchecked")
 	@Override
 	public boolean visit(SuperConstructorInvocation node) {
-		verify(node.getExpression(), true, false);
+//		verify(node.getExpression(), true, false);
 
 		List<Expression> params = (List<Expression>) node
-				.getStructuralProperty(MethodInvocation.ARGUMENTS_PROPERTY);
+				.getStructuralProperty(SuperConstructorInvocation.ARGUMENTS_PROPERTY);
 		for (Expression param : params) {
 			verify(param, true, false);
 		}
@@ -206,12 +274,26 @@ public class AccessBuilder extends ASTVisitor {
 	 */
 	private void pushAccessPolicy(IVariableBinding binding) {
 		assert verifiers != 0;
-		
+
 		if (binding.isField()) {
 			if (readAccessFlag)
 				readAccess.add(binding);
 			if (writeAccessFlag)
 				writeAccess.add(binding);
+		}
+	}
+
+	private void validateAssignment(ASTNode node, ITypeBinding dest,
+			ITypeBinding src) throws CircularReferenceException, CoreException {
+		TypeInformation destInfo = visitor.getTypeInfo(dest);
+		TypeInformation srcInfo = visitor.getTypeInfo(src);
+
+		if (srcInfo.isThreadStarter()
+				&& (!destInfo.isThreadStarter() || destInfo
+						.getSuperThreadMarkers()[0] != srcInfo
+						.getSuperThreadMarkers()[0])) {
+			visitor.reportError(resource, node,
+					ValidationVisitor.Error.InvalidTypeCast);
 		}
 	}
 

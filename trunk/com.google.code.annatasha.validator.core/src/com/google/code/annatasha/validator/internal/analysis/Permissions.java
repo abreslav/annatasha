@@ -6,7 +6,7 @@ import java.util.Iterator;
 
 public final class Permissions implements Iterable<TypeInformation> {
 	
-	public final static Permissions Anonymous = new Permissions();
+	public final static Permissions Any = new Permissions();
 
 	private final ArrayList<TypeInformation> types;
 	private final boolean anonymous;
@@ -43,11 +43,14 @@ public final class Permissions implements Iterable<TypeInformation> {
 	public boolean mightAccess(Permissions resourcePermissons) {
 		if (isAnonymous())
 			return resourcePermissons.isAnonymous();
+		
+		if (resourcePermissons.isAnonymous())
+			return true;
 
 		for (TypeInformation accessor : this) {
 			boolean ok = false;
 			for (TypeInformation resource : resourcePermissons) {
-				if (accessor.isMarkerAssignmentCompatible(resource)) {
+				if (accessor.getBinding().isAssignmentCompatible(resource.getBinding())) {
 					ok = true;
 					break;
 				}
@@ -61,7 +64,7 @@ public final class Permissions implements Iterable<TypeInformation> {
 	
 	public static Permissions concat(final Permissions lhs, final Permissions rhs) {
 		if (lhs.isAnonymous() || rhs.isAnonymous()) {
-			return Anonymous;
+			return Any;
 		}
 		ArrayList<TypeInformation> info = new ArrayList<TypeInformation>(lhs.types.size() + rhs.types.size());
 		info.addAll(lhs.types);

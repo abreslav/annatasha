@@ -1,8 +1,8 @@
 package com.google.code.annatasha.validator.internal.analysis;
 
-import java.util.HashMap;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 
-public final class TypeInformation {
+public final class TypeInformation implements IExecPermissionsHost {
 
 	public final static class SuperInterfaceRecord {
 		public final TypeInformation superInterface;
@@ -15,120 +15,124 @@ public final class TypeInformation {
 	}
 
 	public final static TypeInformation Anonymous = new TypeInformation();
-
-	public static final int K_INTERFACE = 0;
-	public static final int K_CLASS = 1;
-	public static final int K_ENUM = 2;
-	public static final int K_ANNOTATION = 3;
-
-	private static final int K_KIND_MASK = 3;
-
-	public static final int F_RUNNABLE = 4;
-	public static final int F_MARKER = F_RUNNABLE + 8;
-
-	private final int flags;
-	private final boolean anonymous;
-	private final String fullyQualifiedName;
-
-	private final TypeInformation superClass;
-	private final SuperInterfaceRecord[] superInterfaces;
-
-	private HashMap<TypeInformation, Boolean> assignmentMap;
-
+	private ITypeBinding binding;
+	private boolean clazz;
+	private boolean iface;
+	private boolean annot;
+	private boolean threadMarker;
+	private boolean threadStarter;
+	private boolean entryPoint;
+	private boolean inheritedFromEntryPoint;
+	private TypeInformation superClass;
+	private TypeInformation[] superInterfaces;
+	private TypeInformation[] superThreadMarkers;
 	private Permissions execPermissions;
+	private boolean execPermissionsValid;
+	private boolean valid;
+	private String name;
 
 	private TypeInformation() {
-		this.anonymous = true;
-
-		this.flags = F_MARKER | K_INTERFACE;
-		this.superClass = null;
-		this.superInterfaces = new SuperInterfaceRecord[0];
-		this.fullyQualifiedName = "<anonymous marker>";
-		this.execPermissions = Permissions.Anonymous;
+		this(null, false, true, false, true, false, false, false, null,
+				new TypeInformation[] {}, new TypeInformation[] {}, null, true, true);
 	}
 
-	public TypeInformation(String fullyQualifiedName, int flags,
-			TypeInformation superClass, TypeInformation[] superInterfaces,
-			Permissions execPermissions) {
-		this.anonymous = false;
-		this.fullyQualifiedName = fullyQualifiedName;
-
-		this.flags = flags;
+	public TypeInformation(ITypeBinding binding, boolean isClass,
+			boolean isInterface, boolean isAnnotation, boolean isThreadMarker,
+			boolean isThreadStarter, boolean isEntryPoint,
+			boolean isInheritedFromEntryPoint, TypeInformation superClass,
+			TypeInformation[] superInterfaces,
+			TypeInformation[] superThreadMarkers, Permissions execPermissions,
+			boolean areExecPermissionsValid, boolean valid) {
+		this.binding = binding;
+		this.clazz = isClass;
+		this.iface = isInterface;
+		this.annot = isAnnotation;
+		this.threadMarker = isThreadMarker;
+		this.threadStarter = isThreadStarter;
+		this.entryPoint = isEntryPoint;
+		this.inheritedFromEntryPoint = isInheritedFromEntryPoint;
 		this.superClass = superClass;
-		this.superInterfaces = new SuperInterfaceRecord[superInterfaces.length];
+		this.superInterfaces = (TypeInformation[]) superInterfaces.clone();
+		this.superThreadMarkers = (TypeInformation[]) superThreadMarkers
+				.clone();
 		this.execPermissions = execPermissions;
-		for (int i = 0; i < superInterfaces.length; ++i) {
-			this.superInterfaces[i] = new SuperInterfaceRecord(
-					superInterfaces[i]);
-		}
+		this.execPermissionsValid = areExecPermissionsValid;
+		this.valid = valid;
+		this.name = binding == null ? "<anonymous>" : binding.getQualifiedName();
 	}
 
-	public boolean isMarkerAssignmentCompatible(TypeInformation to) {
-		assert isMarker() && (to != null && to.isMarker()) : "Only markers must be checked for assignment compatibility";
-
-		if (anonymous)
-			return true;
-
-		if (this.equals(to))
-			return true;
-
-		Boolean result = assignmentMap.get(to);
-		if (result == null) {
-			result = false;
-			for (SuperInterfaceRecord superInterfaceRecord : superInterfaces) {
-				if (superInterfaceRecord.superInterface
-						.isMarkerAssignmentCompatible(to)) {
-					result = true;
-					break;
-				}
-			}
-			assignmentMap.put(to, result);
-		}
-		return result;
+	// New interface
+	public boolean isAnonymous() {
+		return this == Anonymous;
 	}
 
+	public boolean isThreadMarker() {
+		return threadMarker;
+	}
+
+	public boolean isEntryPoint() {
+		return entryPoint;
+	}
+
+	public boolean isThreadStarter() {
+		return threadStarter;
+	}
+
+	/**
+	 * @return
+	 */
+	public TypeInformation[] getSuperThreadMarkers() {
+		return superThreadMarkers;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see
+	 * com.google.code.annatasha.validator.internal.analysis.IExecPermissionsHost
+	 * #getExecPermissions()
+	 */
 	public Permissions getExecPermissions() {
-		assert !isMarker() : "Marker must not be queried about ExecPermissions";
 		return execPermissions;
+	}
+
+	public boolean isInheritedFromEntryPoint() {
+		return inheritedFromEntryPoint;
+	}
+
+	public boolean isValid() {
+		return valid;
 	}
 
 	public TypeInformation getSuperClass() {
 		return superClass;
 	}
 
-	public SuperInterfaceRecord[] getSuperInterfaces() {
+	public ITypeBinding getBinding() {
+		return binding;
+	}
+
+	public TypeInformation[] getSuperInterfaces() {
 		return superInterfaces;
 	}
 
-	public boolean isClass() {
-		return isClass(flags);
+	public String getName() {
+		return name;
 	}
 
 	public boolean isInterface() {
-		return isInterface(flags);
+		return iface;
 	}
 
-	public boolean isRunnable() {
-		return (flags & F_RUNNABLE) == F_RUNNABLE;
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see
+	 * com.google.code.annatasha.validator.internal.analysis.IExecPermissionsHost
+	 * #areExecPermissionsValid()
+	 */
+	public boolean areExecPermissionsValid() {
+		return execPermissionsValid;
 	}
 
-	public boolean isMarker() {
-		return (flags & F_MARKER) == F_MARKER;
-	}
-
-	public static boolean isInterface(int flags) {
-		return isOfKind(flags, K_INTERFACE);
-	}
-
-	public static boolean isClass(int flags) {
-		return isOfKind(flags, K_CLASS);
-	}
-
-	private static boolean isOfKind(int flags, int kind) {
-		return (flags & K_KIND_MASK) == kind;
-	}
-
-	public String getFullyQualifiedName() {
-		return fullyQualifiedName;
-	}
 }

@@ -10,44 +10,45 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Annotation;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IExtendedModifier;
-import org.eclipse.jdt.core.dom.IMemberValuePairBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
-import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
+import com.google.code.annatasha.validator.core.AnnatashaCore;
 import com.google.code.annatasha.validator.internal.analysis.FieldInformation;
 import com.google.code.annatasha.validator.internal.analysis.MethodInformation;
 import com.google.code.annatasha.validator.internal.analysis.Permissions;
 import com.google.code.annatasha.validator.internal.analysis.TypeInformation;
-import com.google.code.annatasha.validator.internal.analysis.TypeInformation.SuperInterfaceRecord;
 
 public class ValidationVisitor implements ITaskVisitor {
 
 	private final Map<IBinding, Object> resolved = new HashMap<IBinding, Object>();
 	private final Set<IBinding> underConstruction = new HashSet<IBinding>();
 
+	private final Set<IVariableBinding> threadStarters = new HashSet<IVariableBinding>();
 	private final Map<IBinding, TaskNode> bindings;
-
-	private ITypeBinding runnableBinding;
 
 	public ValidationVisitor(final Map<IBinding, TaskNode> bindings) {
 		this.bindings = bindings;
 	}
 
-	public void visit(TypeTaskNode typeTask) {
+	public void visit(TypeTaskNode typeTask) throws CoreException {
 		try {
-			getTypeInfo(typeTask);
+			TypeInformation information = getTypeInfo(typeTask.getBinding());
+			validateTypeInformation(information, typeTask.getBinding(),
+					typeTask.getResource(), typeTask.getNode());
 		} catch (CircularReferenceException e) {
 			// XXX FIX Circular references handling
 			// TODO Auto-generated catch block
@@ -55,10 +56,14 @@ public class ValidationVisitor implements ITaskVisitor {
 		}
 	}
 
-	public void visit(MethodTaskNode methodTask) {
+	public void visit(MethodTaskNode methodTask) throws CoreException {
 		try {
-			getHeadMethodInfo(methodTask);
-			getBodyMethodInfo(methodTask);
+			MethodInformation information = getHeadMethodInfo(methodTask
+					.getBinding());
+			validateMethodInformation(information, methodTask.getResource(),
+					(MethodDeclaration) methodTask.getNode());
+			validateMethodBody(methodTask.getBinding(), methodTask
+					.getResource(), (MethodDeclaration) methodTask.getNode());
 		} catch (CircularReferenceException e) {
 			// XXX FIX Circular references handling
 			// TODO Auto-generated catch block
@@ -67,9 +72,45 @@ public class ValidationVisitor implements ITaskVisitor {
 
 	}
 
-	public void visit(FieldTaskNode fieldTask) {
+	@SuppressWarnings("unchecked")
+	private void validateMethodInformation(MethodInformation information,
+			IResource resource, MethodDeclaration node) throws CoreException {
+		// Check ExecPermissions validity
+		if (!information.areExecPermissionsValid()) {
+			List<IExtendedModifier> modifiers = node.modifiers();
+			Annotation annotation = null;
+			for (IExtendedModifier modifier : modifiers) {
+				if (modifier instanceof Annotation
+						&& ((Annotation) modifier).resolveAnnotationBinding()
+								.getAnnotationType().getQualifiedName().equals(
+										ClassNames.EXEC_PERMISSIONS)) {
+					annotation = (Annotation) modifier;
+				}
+			}
+			if (annotation != null) {
+				if ((information.isEntryPoint() || information
+						.isInheritedFromEntryPoint())
+						&& information.getType().isThreadStarter()) {
+					reportError(resource, annotation,
+							Error.ExecPermissionsInThreadStarterMethod);
+				} else {
+					reportError(resource, annotation,
+							Error.PermissionsMustEnumerateThreadMarkers);
+				}
+			} else {
+				reportError(resource, node, Error.InternalError);
+			}
+		}
+		if (!information.areInheritedExecPermissionsValid()) {
+			reportError(resource, node, Error.ExecPermissionsInheritedViolation);
+		}
+	}
+
+	public void visit(FieldTaskNode fieldTask) throws CoreException {
 		try {
-			getFieldInfo(fieldTask);
+			FieldInformation information = getFieldInfo(fieldTask.getBinding());
+			validateFieldInfo(information, fieldTask.getResource(),
+					(FieldDeclaration) fieldTask.getNode());
 		} catch (CircularReferenceException e) {
 			// XXX FIX Circular references handling
 			// TODO Auto-generated catch block
@@ -77,10 +118,63 @@ public class ValidationVisitor implements ITaskVisitor {
 		}
 	}
 
-	private TypeInformation getTypeInfo(TypeTaskNode task)
+	@SuppressWarnings("unchecked")
+	private void validateFieldInfo(FieldInformation information,
+			IResource resource, FieldDeclaration node) throws CoreException {
+		if (!information.areReadPermissionsValid()) {
+			List<IExtendedModifier> modifiers = node.modifiers();
+			Annotation annotation = null;
+			for (IExtendedModifier modifier : modifiers) {
+				if (modifier instanceof Annotation
+						&& ((Annotation) modifier).resolveAnnotationBinding()
+								.getAnnotationType().getQualifiedName().equals(
+										ClassNames.READ_PERMISSIONS)) {
+					annotation = (Annotation) modifier;
+				}
+			}
+			if (annotation != null) {
+				reportError(resource, annotation,
+						Error.PermissionsMustEnumerateThreadMarkers);
+			} else {
+				reportError(resource, node, Error.InternalError);
+			}
+
+		}
+		if (!information.areWritePermissionsValid()) {
+			List<IExtendedModifier> modifiers = node.modifiers();
+			Annotation annotation = null;
+			for (IExtendedModifier modifier : modifiers) {
+				if (modifier instanceof Annotation
+						&& ((Annotation) modifier).resolveAnnotationBinding()
+								.getAnnotationType().getQualifiedName().equals(
+										ClassNames.WRITE_PERMISSIONS)) {
+					annotation = (Annotation) modifier;
+				}
+			}
+			if (annotation != null) {
+				reportError(resource, annotation,
+						Error.PermissionsMustEnumerateThreadMarkers);
+			} else {
+				reportError(resource, node, Error.InternalError);
+			}
+
+		}
+
+	}
+
+	private class ResolvePermissionsResult {
+		public final Permissions execPermissions;
+		public final boolean isValid;
+
+		public ResolvePermissionsResult(Permissions execPermissions,
+				boolean isValid) {
+			this.execPermissions = execPermissions;
+			this.isValid = isValid;
+		}
+	}
+
+	TypeInformation getTypeInfo(ITypeBinding binding)
 			throws CircularReferenceException {
-		final ITypeBinding binding = task.getBinding();
-
 		TypeInformation typeInformation = (TypeInformation) resolved
 				.get(binding);
 		if (typeInformation == null) {
@@ -90,23 +184,131 @@ public class ValidationVisitor implements ITaskVisitor {
 			try {
 				underConstruction.add(binding);
 
-				int[] flags = new int[1];
-				flags[0] = getTypeKind(task);
-				final TypeInformation superClassInformation = flags[0] == TypeInformation.K_CLASS ? getSuperTypeInfo(task)
-						: null;
-				final TypeInformation[] interfacesInformation = getInterfacesTypeInfo(
-						task, flags);
-				final Permissions execPermissions = processTypeAnnotations(
-						task, interfacesInformation, flags);
+				TypeInformation superClassInformation = null;
+				TypeInformation[] interfacesInformation = null;
 
-				typeInformation = new TypeInformation(binding
-						.getQualifiedName(), flags[0], superClassInformation,
-						interfacesInformation, execPermissions);
-				if (ClassNames.RUNNABLE.equals(binding.getQualifiedName())) {
-					runnableBinding = binding;
+				boolean isInterface = false;
+				boolean isClass = false;
+				boolean isAnnotationOrEnum = false;
+
+				// Whether the class is EntryPoint type.
+				// The type is EntryPoint type if it contains
+				// an EntryPoint method.
+				// Note! Currently all these types are hard-coded:
+				// Callable, Runnable, Thread.
+				boolean isEntryPoint = false;
+				boolean isInheritedFromEntryPoint = false;
+
+				Permissions execPermissions = null;
+
+				// TypeInformation builder validity flags
+
+				// Annotation (and enum) should not be:
+				// 1. marked with ExecPermission
+				// 2. marked with ThreadMarker
+				boolean isAnnotationOrEnumValid = true;
+
+				// True when ExecPermissions's syntax is valid and
+				// only ThreadMarkers occur in the list of markers.
+				boolean isExecPermissionValid = true;
+
+				// The class is considered to be thread starter if
+				// it's derived from one or more thread markers.
+				// The class is valid thread starter if:
+				// 1. it's thread starter
+				// 2. it implements exactly one ThreadMarker (note,
+				// that the ThreadMarker itself may be derived from other
+				// ThreadMarkers)
+				// 3. it's derived from an entry point class (directly, or
+				// indirectly)
+				// The thread starter is invalid if either of 2-3 is violated.
+				boolean isThreadStarter = false;
+				boolean isInvalidThreadStarter = false;
+
+				// The type is considered to be thread marker if
+				// it's marked with @ThreadMarker annotation
+				boolean isThreadMarker = false;
+				// The thread marker is valid if all of the
+				// following takes place:
+				// 1. it's an interface
+				// 2. it's not derived or is only derived from thread markers
+				// 3. it has no methods inside
+				// 4. it has no ExecPermissions annotations
+				boolean isThreadMarkerValid = true;
+
+				List<TypeInformation> superThreadMarkers = new ArrayList<TypeInformation>();
+
+				boolean isValid = true;
+
+				isInterface = binding.isInterface() && !binding.isAnnotation();
+				isClass = binding.isClass();
+				isAnnotationOrEnum = binding.isEnum() || binding.isAnnotation();
+
+				if (isClass)
+					superClassInformation = getSuperTypeInfo(binding);
+				interfacesInformation = getInterfacesTypeInfo(binding);
+
+				for (int i = 0; i < ClassNames.EntryPoints.length; ++i) {
+					if (ClassNames.EntryPoints[i].className.equals(binding
+							.getQualifiedName())) {
+						isEntryPoint = true;
+					}
 				}
-				resolved.put(binding, typeInformation);
 
+				isInheritedFromEntryPoint = false;
+				if (superClassInformation != null) {
+					isInheritedFromEntryPoint = superClassInformation
+							.isEntryPoint()
+							|| superClassInformation
+									.isInheritedFromEntryPoint();
+				}
+
+				for (int i = 0; i < interfacesInformation.length; ++i) {
+					isInheritedFromEntryPoint |= interfacesInformation[i]
+							.isEntryPoint()
+							|| interfacesInformation[i]
+									.isInheritedFromEntryPoint();
+					if (interfacesInformation[i].isThreadMarker()) {
+						superThreadMarkers.add(interfacesInformation[i]);
+					}
+				}
+				isThreadStarter = isClass && superThreadMarkers.size() != 0;
+				isInvalidThreadStarter = isThreadStarter
+						&& (superThreadMarkers.size() != 1 || !isInheritedFromEntryPoint);
+
+				for (IAnnotationBinding annotation : binding.getAnnotations()) {
+					if (ClassNames.EXEC_PERMISSIONS.equals(annotation
+							.getAnnotationType().getQualifiedName())) {
+						final ResolvePermissionsResult result = processPermissions(annotation);
+						isExecPermissionValid = result.isValid;
+						execPermissions = result.execPermissions;
+					} else if (ClassNames.THREAD_MARKER.equals(annotation
+							.getAnnotationType().getQualifiedName())) {
+						isThreadMarker = true;
+					}
+				}
+				isThreadMarkerValid = !isThreadMarker
+						|| (isInterface
+								&& superThreadMarkers.size() == interfacesInformation.length
+								&& binding.getDeclaredMethods().length == 0 && execPermissions == null);
+
+				isAnnotationOrEnumValid = !isAnnotationOrEnum
+						|| (execPermissions == null && !isThreadMarker);
+
+				isValid &= execPermissions == null || isExecPermissionValid;
+				isValid &= isThreadMarkerValid && isAnnotationOrEnumValid;
+
+				TypeInformation[] stm = new TypeInformation[superThreadMarkers
+						.size()];
+				superThreadMarkers.toArray(stm);
+
+				typeInformation = new TypeInformation(binding, isClass,
+						isInterface, isAnnotationOrEnum, isThreadMarker,
+						isThreadStarter, isEntryPoint,
+						isInheritedFromEntryPoint, superClassInformation,
+						interfacesInformation, stm, execPermissions,
+						isExecPermissionValid, isValid);
+				resolved.put(binding, typeInformation);
 			} finally {
 				underConstruction.remove(binding);
 			}
@@ -115,14 +317,131 @@ public class ValidationVisitor implements ITaskVisitor {
 		return typeInformation;
 	}
 
-	@SuppressWarnings("unchecked")
-	private MethodInformation getHeadMethodInfo(MethodTaskNode methodTask)
-			throws CircularReferenceException {
-		IMethodBinding binding = methodTask.getBinding();
+	private ResolvePermissionsResult processPermissions(
+			IAnnotationBinding annotation) throws CircularReferenceException {
+		ArrayList<TypeInformation> execs = new ArrayList<TypeInformation>();
+		boolean isValid = annotation.getAllMemberValuePairs().length == 1;
+		if (!isValid)
+			return new ResolvePermissionsResult(null, false);
 
-		ITypeBinding typeBinding = binding.getDeclaringClass();
-		TypeInformation typeInfo = getTypeInfo(getTypeTaskNode(methodTask
-				.getResource(), methodTask.getNode(), typeBinding));
+		Object value = annotation.getAllMemberValuePairs()[0].getValue();
+		ITypeBinding[] types = null;
+		if (value instanceof ITypeBinding) {
+			types = new ITypeBinding[] { (ITypeBinding) value };
+		} else {
+			Object[] array = (Object[]) value;
+			types = new ITypeBinding[array.length];
+			for (int i = 0; i < types.length; ++i) {
+				types[i] = (ITypeBinding) array[i];
+			}
+		}
+		for (ITypeBinding type : types) {
+			if (type.isInterface() && !type.isAnnotation()) {
+				TypeInformation marker = getTypeInfo(type);
+				isValid &= marker.isThreadMarker();
+				if (marker.isThreadMarker()) {
+					execs.add(marker);
+				}
+			} else {
+				isValid = false;
+			}
+		}
+		Permissions permissions = new Permissions(execs);
+
+		return new ResolvePermissionsResult(permissions, isValid);
+	}
+
+	@SuppressWarnings("unchecked")
+	private void validateTypeInformation(TypeInformation information,
+			ITypeBinding typeBinding, IResource resource, ASTNode node)
+			throws CoreException {
+		TypeDeclaration declNode = (TypeDeclaration) node;
+
+		// Check validity of supertypes.
+		// If they are not and they are not in bindings map,
+		// then report external error.
+		// If they are not and ther are in bindings map,
+		// this will be reported at the moment of visiting
+		// appropriate TypeTaskNode.
+		if (information.getSuperClass() != null
+				&& !information.getSuperClass().isValid()
+				&& !bindings.containsKey(information.getSuperClass()
+						.getBinding())) {
+			reportError(resource, declNode.getSuperclassType(),
+					Error.ExternalTypeIsInvalid);
+		}
+		List<Type> superInterfacesNodesList = declNode.superInterfaceTypes();
+		Type[] superInterfacesNodes = new Type[superInterfacesNodesList.size()];
+		superInterfacesNodesList.toArray(superInterfacesNodes);
+
+		for (TypeInformation superInterface : information.getSuperInterfaces()) {
+			if (!superInterface.isValid()
+					&& !bindings.containsKey(superInterface.getBinding())) {
+				int i;
+				for (i = 0; i < superInterfacesNodes.length; ++i) {
+					if (superInterfacesNodes[i].resolveBinding()
+							.getQualifiedName()
+							.equals(superInterface.getName())) {
+						reportError(resource, superInterfacesNodes[i],
+								Error.ExternalTypeIsInvalid);
+						break;
+					}
+				}
+				if (i == superInterfacesNodes.length) {
+					reportError(resource, node, Error.InternalError);
+				}
+			}
+		}
+
+		// Check thread starter validity
+		if (information.isThreadStarter()) {
+			if (information.getSuperThreadMarkers().length != 1) {
+				reportError(resource, node,
+						Error.ExactlyOneThreadMarkerExpectedForThreadStarter);
+			}
+			if (!information.isInheritedFromEntryPoint()) {
+				reportError(resource, node,
+						Error.ThreadStarterNotInheritedFromEntryPoint);
+			}
+		}
+
+		// Check thread marker validity
+		if (information.isThreadMarker()) {
+			if (!information.isInterface()) {
+				reportError(resource, node, Error.ThreadMarkerMustBeAnInterface);
+			}
+			if (information.getBinding().getDeclaredMethods().length != 0) {
+				reportError(resource, node, Error.ThreadMarkerMustHaveNoMethods);
+			}
+			if (information.getExecPermissions() != null) {
+				reportError(resource, node,
+						Error.ThreadMarkerCannotSpecifyExecPermissions);
+			}
+		}
+
+		// Check ExecPermissions validity
+		if (!information.areExecPermissionsValid()) {
+			List<IExtendedModifier> modifiers = declNode.modifiers();
+			Annotation annotation = null;
+			for (IExtendedModifier modifier : modifiers) {
+				if (modifier instanceof Annotation
+						&& ((Annotation) modifier).getTypeName()
+								.getFullyQualifiedName().equals(
+										ClassNames.EXEC_PERMISSIONS)) {
+					annotation = (Annotation) modifier;
+				}
+			}
+			if (annotation != null) {
+				reportError(resource, annotation,
+						Error.PermissionsMustEnumerateThreadMarkers);
+			} else {
+				reportError(resource, node, Error.InternalError);
+			}
+		}
+	}
+
+	private MethodInformation getHeadMethodInfo(IMethodBinding binding)
+			throws CircularReferenceException {
 
 		MethodInformation result = (MethodInformation) resolved.get(binding);
 		if (result == null) {
@@ -132,61 +451,161 @@ public class ValidationVisitor implements ITaskVisitor {
 			try {
 				underConstruction.add(binding);
 
-				boolean isRunnableRun = typeBinding
-						.isAssignmentCompatible(runnableBinding)
-						&& binding.overrides(runnableBinding
-								.getDeclaredMethods()[0]);
+				ITypeBinding typeBinding = binding.getDeclaringClass();
+				TypeInformation typeInfo = getTypeInfo(typeBinding);
 
-				Permissions execPermissions = getExecPermissions(methodTask,
-						binding, typeInfo);
+				boolean isEntryPoint = false;
+				boolean isInheritedFromEntryPoint = false;
 
-				final boolean[] threadStarterFlags = new boolean[binding
-						.getParameterTypes().length];
-				List<FieldDeclaration> params = null;
-				if (methodTask.getNode() instanceof MethodDeclaration) {
-					params = (List<FieldDeclaration>) methodTask.getNode()
-							.getStructuralProperty(
-									MethodDeclaration.PARAMETERS_PROPERTY);
+				// Execution permissions are set as described:
+				// I. For non-EntryPoint-inherited
+				// a. If ExecPermissions are specified, the permissions
+				// are set to be ones, listed in ExecPermissions.
+				// b. Otherwise, if super-definition exists, they are
+				// taken from super-definition
+				// c. If there is no super-definition, they are set to
+				// Any thread marker
+				// d. In any cases the permissions are validated to be
+				// compatible with ones of super-declarations and
+				// super-definition.
+				// II. For one EntryPoint-inherited
+				// a. In thread starters they are set to the context of
+				// thread starter.
+				// b. In other classes they have Any permissions.
+				// c. In interfaces they might use ExecPermissions to
+				// specify permissions for the EntryPoint-inherited class.
+				// d. In any cases the permissions are validated to be
+				// compatible with ones of super-declaration
+				boolean isLocalExecPermissionValid = true;
+				boolean isInheritedExecPermissionValid = true;
+				Permissions execPermissions = null;
+
+				MethodInformation superDefinition = getSuperDefinition(binding,
+						typeBinding);
+
+				HashMap<TypeInformation, TypeInformation> declarationTypeToParentType = new HashMap<TypeInformation, TypeInformation>();
+				ArrayList<MethodInformation> superDeclarations = getSuperDeclarations(
+						binding, typeBinding, declarationTypeToParentType);
+
+				if (typeInfo.isEntryPoint()) {
+					for (ClassNames.EntryPoint point : ClassNames.EntryPoints) {
+						if (point.className.equals(typeInfo.getName())
+								&& point.methodName.equals(binding.getName())) {
+							isEntryPoint = true;
+							break;
+						}
+					}
 				}
-				for (int i = 0; i < threadStarterFlags.length; ++i) {
-					IAnnotationBinding[] paramAnnotations = binding
-							.getParameterAnnotations(i);
-					for (IAnnotationBinding paramAnnotation : paramAnnotations) {
-						if (ClassNames.THREAD_STARTER.equals(paramAnnotation
-								.getAnnotationType().getQualifiedName())) {
-							TypeInformation paramTypeInfo = getTypeInfo(getTypeTaskNode(
-									methodTask.getResource(), methodTask
-											.getNode(), binding
-											.getParameterTypes()[i]));
-							if (!paramTypeInfo.isRunnable()) {
-								ASTNode errNode = methodTask.getNode();
-								if (params != null)
-									errNode = params.get(i);
-								reportError(methodTask.getResource(), errNode,
-										Error.NonRunnableArgumentThreadStarter);
-							} else {
-								threadStarterFlags[i] = true;
+
+				if (typeInfo.isInheritedFromEntryPoint()) {
+					if (superDefinition != null
+							&& (superDefinition.isEntryPoint() || superDefinition
+									.isInheritedFromEntryPoint())) {
+						isInheritedFromEntryPoint = true;
+					}
+					if (!isInheritedFromEntryPoint) {
+						for (int i = 0; i < superDeclarations.size(); ++i) {
+							if (superDeclarations.get(i).isEntryPoint()
+									|| superDeclarations.get(i)
+											.isInheritedFromEntryPoint()) {
+								isInheritedFromEntryPoint = true;
+								break;
 							}
 						}
 					}
 				}
 
-				MethodInformation superDefinition = getSuperDefinition(
-						methodTask, binding, typeBinding);
+				// Exec Permissions
+				for (IAnnotationBinding annotation : binding.getAnnotations()) {
+					if (ClassNames.EXEC_PERMISSIONS.equals(annotation
+							.getAnnotationType().getQualifiedName())) {
+						final ResolvePermissionsResult permResult = processPermissions(annotation);
+						isLocalExecPermissionValid = permResult.isValid;
+						execPermissions = permResult.execPermissions;
+					}
+				}
 
-				HashMap<TypeInformation, TypeInformation> declarationTypeToParentType = new HashMap<TypeInformation, TypeInformation>();
-				ArrayList<MethodInformation> superDeclarations = getSuperDeclarations(
-						methodTask, binding, typeBinding,
-						declarationTypeToParentType);
+				if (typeInfo.isThreadStarter()) {
+					if (execPermissions != null) {
+						isLocalExecPermissionValid = false;
+					}
+					execPermissions = new Permissions(Arrays
+							.asList(new TypeInformation[] { typeInfo
+									.getSuperThreadMarkers()[0] }));
+				} else if (execPermissions == null) {
+					execPermissions = typeInfo.getExecPermissions();
+				}
+				if (execPermissions == null) {
+					execPermissions = Permissions.Any;
+				}
 
-				boolean permissionsDowncast = validateExecPermissions(
-						methodTask, typeInfo, isRunnableRun, execPermissions,
-						superDefinition, superDeclarations,
-						declarationTypeToParentType);
+				if (superDefinition != null) {
+					isInheritedExecPermissionValid &= superDefinition
+							.getExecPermissions().mightAccess(execPermissions);
+				}
+
+				for (MethodInformation superDeclaration : superDeclarations) {
+					isInheritedExecPermissionValid &= superDeclaration
+							.getExecPermissions().mightAccess(execPermissions);
+				}
+
+				// Thread starters
+				boolean areParametersValid = true;
+				ArrayList<Integer> tsParams = null;
+				if (superDefinition != null) {
+					tsParams = superDefinition.getThreadStarterParameters();
+				}
+				for (MethodInformation superDeclaration : superDeclarations) {
+					ArrayList<Integer> localTs = superDeclaration
+							.getThreadStarterParameters();
+					if (tsParams != null) {
+						if (tsParams.size() != localTs.size()) {
+							areParametersValid = false;
+						} else {
+							for (int i = 0; i < tsParams.size(); ++i) {
+								if (tsParams.get(i).intValue() != localTs
+										.get(i).intValue()) {
+									areParametersValid = false;
+								}
+							}
+						}
+					} else {
+						tsParams = localTs;
+					}
+				}
+
+				int paramsCount = binding.getParameterTypes().length;
+				ArrayList<Integer> selfList = new ArrayList<Integer>();
+				for (int i = 0; i < paramsCount; ++i) {
+					for (IAnnotationBinding ann : binding
+							.getParameterAnnotations(i)) {
+						if (ClassNames.THREAD_STARTER.equals(ann
+								.getAnnotationType().getQualifiedName())) {
+							selfList.add(i);
+						}
+					}
+				}
+
+				if (tsParams == null) {
+					tsParams = selfList;
+				} else {
+					if (tsParams.size() != selfList.size()) {
+						areParametersValid = false;
+					} else {
+						for (int i = 0; i < tsParams.size(); ++i) {
+							if (tsParams.get(i).intValue() != selfList.get(i)
+									.intValue()) {
+								areParametersValid = false;
+							}
+						}
+					}
+				}
 
 				result = new MethodInformation(typeInfo, superDefinition,
 						superDeclarations, execPermissions,
-						permissionsDowncast, threadStarterFlags);
+						isLocalExecPermissionValid,
+						isInheritedExecPermissionValid, isEntryPoint,
+						isInheritedFromEntryPoint, selfList);
 
 				resolved.put(binding, result);
 			} finally {
@@ -197,54 +616,6 @@ public class ValidationVisitor implements ITaskVisitor {
 	}
 
 	/**
-	 * @param methodTask
-	 * @param typeInfo
-	 * @param isRunnableRun
-	 * @param execPermissions
-	 * @param superDefinition
-	 * @param superDeclarations
-	 * @param declarationTypeToParentType
-	 * @return
-	 */
-	private boolean validateExecPermissions(
-			MethodTaskNode methodTask,
-			TypeInformation typeInfo,
-			boolean isRunnableRun,
-			Permissions execPermissions,
-			MethodInformation superDefinition,
-			ArrayList<MethodInformation> superDeclarations,
-			HashMap<TypeInformation, TypeInformation> declarationTypeToParentType) {
-		if (superDefinition != null) {
-			if (!superDefinition.getExecPermissions().mightAccess(
-					execPermissions)) {
-				reportError(methodTask.getResource(), methodTask.getNode(),
-						Error.MethodPermissionsMustIncludeInherited);
-			}
-		}
-
-		HashSet<TypeInformation> restrictedUpcast = new HashSet<TypeInformation>();
-		for (MethodInformation superDeclaration : superDeclarations) {
-			if (!superDeclaration.getExecPermissions().mightAccess(
-					execPermissions)) {
-				if (!isRunnableRun) {
-					reportError(methodTask.getResource(), methodTask.getNode(),
-							Error.MethodPermissionsMustIncludeInherited);
-				} else {
-					restrictedUpcast.add(declarationTypeToParentType
-							.get(superDeclaration));
-				}
-			}
-		}
-
-		for (SuperInterfaceRecord i : typeInfo.getSuperInterfaces()) {
-			i.typecastRestricted = restrictedUpcast.contains(i);
-		}
-
-		return restrictedUpcast.size() != 0;
-	}
-
-	/**
-	 * @param methodTask
 	 * @param binding
 	 * @param typeBinding
 	 * @param declarationTypeToParentType
@@ -252,7 +623,6 @@ public class ValidationVisitor implements ITaskVisitor {
 	 * @throws CircularReferenceException
 	 */
 	private ArrayList<MethodInformation> getSuperDeclarations(
-			MethodTaskNode methodTask,
 			IMethodBinding binding,
 			ITypeBinding typeBinding,
 			final HashMap<TypeInformation, TypeInformation> declarationTypeToParentType)
@@ -297,9 +667,7 @@ public class ValidationVisitor implements ITaskVisitor {
 			MethodInformation localSuperDeclaration = null;
 			for (IMethodBinding superMethodBinding : iface.getDeclaredMethods()) {
 				if (binding.overrides(superMethodBinding)) {
-					localSuperDeclaration = getHeadMethodInfo(getMethodTaskNode(
-							methodTask.getResource(), methodTask.getNode(),
-							superMethodBinding));
+					localSuperDeclaration = getHeadMethodInfo(superMethodBinding);
 					break;
 				}
 			}
@@ -322,24 +690,20 @@ public class ValidationVisitor implements ITaskVisitor {
 	}
 
 	/**
-	 * @param methodTask
 	 * @param binding
 	 * @param typeBinding
 	 * @return
 	 * @throws CircularReferenceException
 	 */
-	private MethodInformation getSuperDefinition(MethodTaskNode methodTask,
-			IMethodBinding binding, ITypeBinding typeBinding)
-			throws CircularReferenceException {
+	private MethodInformation getSuperDefinition(IMethodBinding binding,
+			ITypeBinding typeBinding) throws CircularReferenceException {
 		MethodInformation superDefinition = null;
 		for (ITypeBinding superClass = typeBinding.getSuperclass(); superClass != null; superClass = superClass
 				.getSuperclass()) {
 			for (IMethodBinding superMethodBinding : superClass
 					.getDeclaredMethods()) {
 				if (binding.overrides(superMethodBinding)) {
-					superDefinition = getHeadMethodInfo(getMethodTaskNode(
-							methodTask.getResource(), methodTask.getNode(),
-							superMethodBinding));
+					superDefinition = getHeadMethodInfo(superMethodBinding);
 					break;
 				}
 			}
@@ -347,43 +711,16 @@ public class ValidationVisitor implements ITaskVisitor {
 		return superDefinition;
 	}
 
-	/**
-	 * @param methodTask
-	 * @param binding
-	 * @param typeInfo
-	 * @return
-	 * @throws CircularReferenceException
-	 */
-	private Permissions getExecPermissions(MethodTaskNode methodTask,
-			IMethodBinding binding, TypeInformation typeInfo)
-			throws CircularReferenceException {
-		Permissions typeInheritedExecPermissions = typeInfo
-				.getExecPermissions();
-		Permissions selfExecPermissions = Permissions.Anonymous;
-		for (IAnnotationBinding annotation : binding.getAnnotations()) {
-			if (ClassNames.EXEC_PERMISSIONS.equals(annotation
-					.getAnnotationType().getQualifiedName())) {
-				selfExecPermissions = processPermissionsAnnotation(methodTask,
-						annotation);
-				break;
-			}
-		}
-		Permissions execPermissions = selfExecPermissions.isAnonymous() ? typeInheritedExecPermissions
-				: selfExecPermissions;
-		return execPermissions;
-	}
+	private void validateMethodBody(IMethodBinding binding, IResource resource,
+			MethodDeclaration node) throws CircularReferenceException,
+			CoreException {
+		MethodInformation info = getHeadMethodInfo(binding);
 
-	private void getBodyMethodInfo(MethodTaskNode methodTask)
-			throws CircularReferenceException {
-		MethodInformation info = getHeadMethodInfo(methodTask);
-
-		IMethodBinding binding = methodTask.getBinding();
-		MethodDeclaration node = null;
-		if (methodTask.getNode() instanceof MethodDeclaration
-				&& ((MethodDeclaration) methodTask.getNode()).resolveBinding() == binding) {
-			node = (MethodDeclaration) methodTask.getNode();
-		}
 		Permissions execPermissions = info.getExecPermissions();
+
+		// XXX parameters
+		Object obj = node
+				.getStructuralProperty(MethodDeclaration.PARAMETERS_PROPERTY);
 
 		// If we've got source, we should check access rules
 		if (node != null && node.getBody() != null) {
@@ -391,33 +728,30 @@ public class ValidationVisitor implements ITaskVisitor {
 			final Set<IVariableBinding> writeAccess = new HashSet<IVariableBinding>();
 			final Set<IMethodBinding> execAccess = new HashSet<IMethodBinding>();
 
-			AccessBuilder builder = new AccessBuilder(readAccess, writeAccess,
-					execAccess);
-			node.getBody().accept(builder);
+			AccessBuilder builder = new AccessBuilder(this, resource,
+					readAccess, writeAccess, execAccess);
+			builder.buildAccessStructures(node.getBody());
 
 			for (IVariableBinding read : readAccess) {
-				FieldInformation field = getFieldInfo(getFieldTaskNode(
-						methodTask.getResource(), methodTask.getNode(), read));
+				FieldInformation field = getFieldInfo(read);
 				if (!execPermissions.mightAccess(field.getReadPermissions())) {
-					reportError(methodTask.getResource(), methodTask.getNode(),
+					reportError(resource, node,
 							Error.MethodAttemptsToReadInaccessibleVariable);
 				}
 			}
 
 			for (IVariableBinding write : writeAccess) {
-				FieldInformation field = getFieldInfo(getFieldTaskNode(
-						methodTask.getResource(), methodTask.getNode(), write));
+				FieldInformation field = getFieldInfo(write);
 				if (!execPermissions.mightAccess(field.getWritePermissions())) {
-					reportError(methodTask.getResource(), methodTask.getNode(),
+					reportError(resource, node,
 							Error.MethodAttemptsToWriteInaccessibleVariable);
 				}
 			}
 
 			for (IMethodBinding exec : execAccess) {
-				MethodInformation method = getHeadMethodInfo(getMethodTaskNode(
-						methodTask.getResource(), methodTask.getNode(), exec));
+				MethodInformation method = getHeadMethodInfo(exec);
 				if (!execPermissions.mightAccess(method.getExecPermissions())) {
-					reportError(methodTask.getResource(), methodTask.getNode(),
+					reportError(resource, node,
 							Error.MethodAttemptsToExecInaccessibleMethod);
 				}
 			}
@@ -425,9 +759,8 @@ public class ValidationVisitor implements ITaskVisitor {
 	}
 
 	@SuppressWarnings("unchecked")
-	private FieldInformation getFieldInfo(FieldTaskNode fieldTask)
+	private FieldInformation getFieldInfo(IVariableBinding binding)
 			throws CircularReferenceException {
-		IVariableBinding binding = fieldTask.getBinding();
 
 		FieldInformation result = (FieldInformation) resolved.get(binding);
 		if (result == null) {
@@ -436,46 +769,33 @@ public class ValidationVisitor implements ITaskVisitor {
 				throw new CircularReferenceException(binding);
 			}
 			try {
-				VariableDeclarationFragment fragment = (VariableDeclarationFragment) fieldTask
-						.getNode();
-				FieldDeclaration field = (FieldDeclaration) fragment
-						.getParent();
+				underConstruction.add(binding);
 
 				ITypeBinding type = binding.getType();
-				TypeInformation information = null;
-				try {
-					information = getTypeInfo(getTypeTaskNode(fieldTask
-							.getResource(), fieldTask.getNode(), type));
-				} catch (CircularReferenceException e) {
-				}
-				Permissions readPermissions = Permissions.Anonymous;
-				Permissions writePermissions = Permissions.Anonymous;
+				TypeInformation information = getTypeInfo(type);
 
-				List<IExtendedModifier> modifiers = field.modifiers();
-				for (IExtendedModifier modifier : modifiers) {
-					if (modifier instanceof Annotation) {
-						Annotation annotation = (Annotation) modifier;
-						final String fqn = annotation.getTypeName()
-								.getFullyQualifiedName();
-						if (ClassNames.READ_PERMISSIONS.equals(fqn)) {
-							try {
-								readPermissions = processPermissionsAnnotation(
-										fieldTask, annotation
-												.resolveAnnotationBinding());
-							} catch (CircularReferenceException e) {
-							}
-						} else if (ClassNames.WRITE_PERMISSIONS.equals(fqn)) {
-							try {
-								writePermissions = processPermissionsAnnotation(
-										fieldTask, annotation
-												.resolveAnnotationBinding());
-							} catch (CircularReferenceException e) {
-							}
-						}
+				boolean isReadPermissionsValid = true;
+				boolean isWritePermissionsValid = true;
+				Permissions readPermissions = Permissions.Any;
+				Permissions writePermissions = Permissions.Any;
+
+				for (IAnnotationBinding annotation : binding.getAnnotations()) {
+					String fqn = annotation.getAnnotationType()
+							.getQualifiedName();
+					if (ClassNames.READ_PERMISSIONS.equals(fqn)) {
+						ResolvePermissionsResult readPermissionsResult = processPermissions(annotation);
+						isReadPermissionsValid = readPermissionsResult.isValid;
+						readPermissions = readPermissionsResult.execPermissions;
+					} else if (ClassNames.WRITE_PERMISSIONS.equals(fqn)) {
+						ResolvePermissionsResult writePermissionsResult = processPermissions(annotation);
+						isWritePermissionsValid = writePermissionsResult.isValid;
+						writePermissions = writePermissionsResult.execPermissions;
 					}
 				}
+
 				result = new FieldInformation(information, readPermissions,
-						writePermissions);
+						isReadPermissionsValid, writePermissions,
+						isWritePermissionsValid);
 
 				resolved.put(binding, result);
 			} finally {
@@ -486,194 +806,44 @@ public class ValidationVisitor implements ITaskVisitor {
 		return result;
 	}
 
-	@SuppressWarnings("unchecked")
-	private Permissions processTypeAnnotations(TypeTaskNode task,
-			final TypeInformation[] interfacesInformation, int[] flags)
+	private TypeInformation getSuperTypeInfo(ITypeBinding binding)
 			throws CircularReferenceException {
-		final ITypeBinding binding = task.getBinding();
-		Permissions execPermissions = Permissions.Anonymous;
-		if (doesTheNodeCorrespondToTheType(task.getNode(), binding)) {
-			TypeDeclaration typeDeclaration = (TypeDeclaration) task.getNode();
-			List<IExtendedModifier> modifiers = typeDeclaration.modifiers();
-
-			boolean isThreadMarker = false;
-			boolean hasExecPermissions = false;
-			boolean bothFlag = false;
-			for (IExtendedModifier modifier : modifiers) {
-				if (modifier instanceof Annotation) {
-					final Annotation annotation = (Annotation) modifier;
-					final String fqn = annotation.getTypeName()
-							.getFullyQualifiedName();
-					if (fqn.equals(ClassNames.THREAD_MARKER)) {
-						isThreadMarker = true;
-						flags[0] |= TypeInformation.F_MARKER;
-						processThreadMarkerAnnotation(task, flags[0],
-								interfacesInformation);
-					} else if (ClassNames.EXEC_PERMISSIONS.equals(fqn)) {
-						hasExecPermissions = true;
-						execPermissions = processPermissionsAnnotation(task,
-								annotation.resolveAnnotationBinding());
-					}
-					if (isThreadMarker && hasExecPermissions && !bothFlag) {
-						bothFlag = true;
-						reportError(task.getResource(), task.getNode(),
-								Error.ThreadMarkerCannotSpecifyExecPermissions);
-					}
-				}
-			}
-		}
-		return execPermissions;
-	}
-
-	private Permissions processPermissionsAnnotation(TaskNode task,
-			final IAnnotationBinding annotationBinding)
-			throws CircularReferenceException {
-		// IAnnotationBinding annotationBinding = annotation
-		// .resolveAnnotationBinding();
-		IMemberValuePairBinding memValueBinding = annotationBinding
-				.getAllMemberValuePairs()[0];
-		ITypeBinding[] markersBindings = (ITypeBinding[]) memValueBinding
-				.getValue();
-		TypeInformation[] markers = new TypeInformation[markersBindings.length];
-		for (int i = 0; i < markers.length; ++i) {
-			// FIXME cyclic reference may occur in
-			// incorrectly annotated program
-			markers[i] = getTypeInfo(getTypeTaskNode(task.getResource(), task
-					.getNode(), markersBindings[i]));
-			if (!markers[i].isMarker()) {
-				reportError(task.getResource(), task.getNode(),
-						Error.NonThreadMarkerPermission);
-			}
-		}
-		return new Permissions(Arrays.asList(markers));
-	}
-
-	private void processThreadMarkerAnnotation(TypeTaskNode task, int flags,
-			final TypeInformation[] interfacesInformation) {
-		if (!TypeInformation.isInterface(flags)) {
-			reportError(task.getResource(), task.getNode(),
-					Error.ThreadMarkerMustBeAnInterface);
-		}
-		boolean hasRunnable = false;
-		for (int i = 0; i < interfacesInformation.length; ++i) {
-			final boolean isRunnable = interfacesInformation[i]
-					.getFullyQualifiedName().equals(ClassNames.RUNNABLE);
-			final boolean isMarker = interfacesInformation[i].isMarker();
-
-			hasRunnable |= isRunnable | isMarker;
-			if (!isRunnable && !isMarker) {
-				reportError(task.getResource(), task.getNode(),
-						Error.ThreadMarkerSupertypeError);
-			}
-		}
-		if (!hasRunnable) {
-			reportError(task.getResource(), task.getNode(),
-					Error.ThreadMarkerNotRunnable);
-
-		}
-	}
-
-	private int getTypeKind(final TypeTaskNode task) {
-		final ITypeBinding binding = task.getBinding();
-		int kind = TypeInformation.K_CLASS;
-		if (binding.isAnnotation()) {
-			kind = TypeInformation.K_ANNOTATION;
-		} else if (binding.isEnum()) {
-			kind = TypeInformation.K_ENUM;
-		} else if (binding.isInterface()) {
-			kind = TypeInformation.K_INTERFACE;
-		}
-		return kind;
-	}
-
-	private TypeInformation getSuperTypeInfo(TypeTaskNode task)
-			throws CircularReferenceException {
-		ITypeBinding superClassBinding = task.getBinding().getSuperclass();
+		ITypeBinding superClassBinding = binding.getSuperclass();
 		if (superClassBinding == null) {
 			return null;
 		}
-		ASTNode superClassNode = task.getNode();
-		if (task.getNode() instanceof TypeDeclaration) {
-			superClassNode = ((TypeDeclaration) task.getNode())
-					.getSuperclassType();
-		}
-		TypeInformation information = getTypeInfo(getTypeTaskNode(task
-				.getResource(), superClassNode, superClassBinding));
+		TypeInformation information = getTypeInfo(superClassBinding);
 		return information;
 	}
 
-	private TypeInformation[] getInterfacesTypeInfo(TypeTaskNode task,
-			int[] flags) throws CircularReferenceException {
+	private TypeInformation[] getInterfacesTypeInfo(ITypeBinding binding)
+			throws CircularReferenceException {
 		final TypeInformation[] interfacesInformation;
-		final ASTNode node = task.getNode();
-		final ITypeBinding binding = task.getBinding();
-		if (doesTheNodeCorrespondToTheType(node, binding)) {
-			TypeDeclaration typeDeclaration = (TypeDeclaration) node;
-			Type[] superInterfacesNodes = (Type[]) typeDeclaration
-					.getStructuralProperty(TypeDeclaration.SUPER_INTERFACES_PROPERTY);
-			interfacesInformation = new TypeInformation[superInterfacesNodes.length];
-			for (int i = 0; i < superInterfacesNodes.length; ++i) {
-				ITypeBinding interfaceBinding = superInterfacesNodes[i]
-						.resolveBinding();
-				TypeTaskNode interfaceTask = getTypeTaskNode(
-						task.getResource(), superInterfacesNodes[i],
-						interfaceBinding);
-				interfacesInformation[i] = getTypeInfo(interfaceTask);
-			}
-		} else {
-			ITypeBinding[] interfaces = binding.getInterfaces();
-			interfacesInformation = new TypeInformation[interfaces.length];
-			for (int i = 0; i < interfaces.length; ++i) {
-				TypeTaskNode interfaceTask = getTypeTaskNode(
-						task.getResource(), node, interfaces[i]);
-				interfacesInformation[i] = getTypeInfo(interfaceTask);
-			}
-		}
-		for (int i = 0; i < interfacesInformation.length; ++i) {
-			if (interfacesInformation[i].isRunnable()) {
-				flags[0] |= TypeInformation.F_RUNNABLE;
-				break;
-			}
+
+		ITypeBinding[] interfaces = binding.getInterfaces();
+		interfacesInformation = new TypeInformation[interfaces.length];
+		for (int i = 0; i < interfaces.length; ++i) {
+			interfacesInformation[i] = getTypeInfo(interfaces[i]);
 		}
 		return interfacesInformation;
 	}
 
-	private boolean doesTheNodeCorrespondToTheType(final ASTNode node,
-			final ITypeBinding binding) {
-		return node instanceof TypeDeclaration
-				&& ((TypeDeclaration) node).resolveBinding() == binding;
-	}
+	void reportError(IResource resource, ASTNode node, Error code)
+			throws CoreException {
+		IMarker marker = resource.createMarker(AnnatashaCore.MARKER_TYPE);
+		if (code == Error.InternalError) {
+			try {
+				throw new Exception("Internal Error");
+			} catch (Exception ex) {
+				ex.printStackTrace();
+			}
 
-	private TypeTaskNode getTypeTaskNode(IResource resource, ASTNode node,
-			ITypeBinding typeBinding) {
-		TypeTaskNode result = (TypeTaskNode) bindings.get(typeBinding);
-		if (result == null) {
-			result = new TypeTaskNode(resource, node, typeBinding);
 		}
-		return result;
-	}
-
-	private MethodTaskNode getMethodTaskNode(IResource resource, ASTNode node,
-			IMethodBinding binding) {
-		MethodTaskNode result = (MethodTaskNode) bindings.get(binding);
-		if (result == null) {
-			result = new MethodTaskNode(resource, node, binding);
-		}
-		return result;
-	}
-
-	private FieldTaskNode getFieldTaskNode(IResource resource, ASTNode node,
-			IVariableBinding binding) {
-		FieldTaskNode result = (FieldTaskNode) bindings.get(binding);
-		if (result == null) {
-			result = new FieldTaskNode(resource, node, binding);
-		}
-		return result;
-	}
-
-	private void reportError(IResource resource, ASTNode node, Error code) {
-		// TODO Auto-generated method stub
-
+		marker.setAttribute(IMarker.MESSAGE, code.message);
+		marker.setAttribute(IMarker.SEVERITY, IMarker.SEVERITY_ERROR);
+		marker.setAttribute(IMarker.CHAR_START, node.getStartPosition());
+		marker.setAttribute(IMarker.CHAR_END, node.getStartPosition()
+				+ node.getLength());
 	}
 
 	private static interface ClassNames {
@@ -685,22 +855,48 @@ public class ValidationVisitor implements ITaskVisitor {
 		final static String EXEC_PERMISSIONS = "com.google.code.annatasha.annotations.Method.ExecPermissions";
 
 		final static String RUNNABLE = "java.lang.Runnable";
+
+		public static class EntryPoint {
+			public final String className;
+			public final String methodName;
+
+			public EntryPoint(String className, String methodName) {
+				this.className = className;
+				this.methodName = methodName;
+			}
+		}
+
+		final static EntryPoint[] EntryPoints = new EntryPoint[] {
+				new EntryPoint("java.lang.Runnable", "run"),
+				new EntryPoint("java.util.concurrent.Callable", "call"),
+				new EntryPoint("java.lang.Thread", "start") };
 	}
 
-	private enum Error {
+	public enum Error {
 		ThreadMarkerCannotSpecifyExecPermissions(0x1,
 				"An type cannot both be thread marker and have execution permissions specified"), ThreadMarkerMustBeAnInterface(
 				0x2, "Thread marker must be an interface"), ThreadMarkerSupertypeError(
 				0x3,
 				"Thread marker may only extend thread markers or java.lang.Runnable"), ThreadMarkerNotRunnable(
-				0x4, "Thread marker must extend java.lang.Runnable"), NonThreadMarkerPermission(
+				0x4, "Thread marker must extend java.lang.Runnable"), PermissionsMustEnumerateThreadMarkers(
 				0x5, "Only thread markers may specify permissions"), MethodAttemptsToReadInaccessibleVariable(
 				0x6, "Method attempts to read inaccessible variable"), MethodAttemptsToWriteInaccessibleVariable(
 				0x7, "Method attempts to write inaccessible variable"), MethodAttemptsToExecInaccessibleMethod(
 				0x8, "Method attempts to execute inaccessible method"), MethodPermissionsMustIncludeInherited(
 				0x9,
 				"Method permissions must be wider than inherited permissions"), NonRunnableArgumentThreadStarter(
-				0xA, "Non-runnable argument may not be thread starter");
+				0xA, "Non-runnable argument may not be thread starter"), ExternalTypeIsInvalid(
+				0xB, "External type is invalid"), InternalError(0xC,
+				"Internal error"), ExactlyOneThreadMarkerExpectedForThreadStarter(
+				0xD, "Exactly one thread marker is expected for thread starter"), ThreadStarterNotInheritedFromEntryPoint(
+				0xE,
+				"Thread starter must be inherited from entry point class (Callable, Runnable, Thread)"), ThreadMarkerMustHaveNoMethods(
+				0xF, "There must be no methods declared in thread marker"), ExecPermissionsInThreadStarterMethod(
+				0x10,
+				"ExecPermissions cannot be specified in thread starter method"), InvalidTypeCast(
+				0x11, "Invalid typecast"), ExecPermissionsInheritedViolation(
+				0x12,
+				"Execution permissions for method violate inherited execution permissions");
 
 		public final int code;
 		public final String message;
@@ -709,5 +905,10 @@ public class ValidationVisitor implements ITaskVisitor {
 			this.code = code;
 			this.message = message;
 		}
+	}
+
+	public MethodInformation getMethodInfo(IMethodBinding binding) {
+		return (MethodInformation) resolved.get(binding);
+
 	}
 }

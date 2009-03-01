@@ -1,6 +1,7 @@
 package com.google.code.annatasha.validator.internal.build;
 
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 
@@ -15,7 +16,7 @@ public final class MethodTaskNode extends TaskNode {
 	}
 
 	@Override
-	public void acceptVisitor(ITaskVisitor visitor) {
+	public void acceptVisitor(ITaskVisitor visitor) throws CoreException {
 		visitor.visit(this);
 	}
 
