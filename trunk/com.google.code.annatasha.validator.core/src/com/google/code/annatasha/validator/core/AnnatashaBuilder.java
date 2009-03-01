@@ -16,7 +16,7 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 
-import com.google.code.annatasha.validator.internal.build.AnnatashaValidator;
+import com.google.code.annatasha.validator.internal.build.SourceFileRequestor;
 
 public class AnnatashaBuilder extends IncrementalProjectBuilder {
 
@@ -64,7 +64,7 @@ public class AnnatashaBuilder extends IncrementalProjectBuilder {
 			parser.setKind(ASTParser.K_COMPILATION_UNIT);
 			parser.setProject(project);
 
-			AnnatashaValidator requestor = new AnnatashaValidator();
+			SourceFileRequestor requestor = new SourceFileRequestor();
 			parser.createASTs(units, new String[0], requestor, monitor);
 			requestor.validate();
 			System.out.println("Built succesfully");

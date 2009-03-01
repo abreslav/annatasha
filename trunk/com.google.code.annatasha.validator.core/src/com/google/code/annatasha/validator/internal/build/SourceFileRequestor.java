@@ -13,8 +13,9 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.IBinding;
 
 import com.google.code.annatasha.validator.core.AnnatashaCore;
+import com.google.code.annatasha.validator.internal.build.tasks.TaskNode;
 
-public final class AnnatashaValidator extends ASTRequestor {
+public final class SourceFileRequestor extends ASTRequestor {
 
 	private final Map<IBinding, TaskNode> bindings = new HashMap<IBinding, TaskNode>();
 	private final Set<TaskNode> tasks = new HashSet<TaskNode>();
@@ -28,7 +29,7 @@ public final class AnnatashaValidator extends ASTRequestor {
 		} catch (CoreException e) {
 			// XXX Propagate it somewhere!!!
 		}
-		AnnatashaVisitor visitor = new AnnatashaVisitor(source.getResource(),
+		SourceFileLightProcessor visitor = new SourceFileLightProcessor(source.getResource(),
 				tasks);
 		ast.accept(visitor);
 		super.acceptAST(source, ast);

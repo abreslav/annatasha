@@ -25,12 +25,18 @@ import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 import com.google.code.annatasha.validator.core.AnnatashaCore;
-import com.google.code.annatasha.validator.internal.analysis.FieldInformation;
-import com.google.code.annatasha.validator.internal.analysis.MethodInformation;
-import com.google.code.annatasha.validator.internal.analysis.Permissions;
-import com.google.code.annatasha.validator.internal.analysis.TypeInformation;
+import com.google.code.annatasha.validator.internal.build.tasks.FieldTaskNode;
+import com.google.code.annatasha.validator.internal.build.tasks.ITaskVisitor;
+import com.google.code.annatasha.validator.internal.build.tasks.MethodTaskNode;
+import com.google.code.annatasha.validator.internal.build.tasks.TaskNode;
+import com.google.code.annatasha.validator.internal.build.tasks.TypeTaskNode;
+import com.google.code.annatasha.validator.internal.structures.FieldInformation;
+import com.google.code.annatasha.validator.internal.structures.MethodInformation;
+import com.google.code.annatasha.validator.internal.structures.Permissions;
+import com.google.code.annatasha.validator.internal.structures.TypeInformation;
 
 public class ValidationVisitor implements ITaskVisitor {
 
@@ -735,6 +741,7 @@ public class ValidationVisitor implements ITaskVisitor {
 		return superDefinition;
 	}
 
+	@SuppressWarnings("unchecked")
 	private void validateMethodBody(IMethodBinding binding, IResource resource,
 			MethodDeclaration node) throws CircularReferenceException,
 			CoreException {
@@ -742,9 +749,12 @@ public class ValidationVisitor implements ITaskVisitor {
 
 		Permissions execPermissions = info.getExecPermissions();
 
-		// XXX parameters
-		Object obj = node
+		List<VariableDeclaration> params = (List<VariableDeclaration>) node
 				.getStructuralProperty(MethodDeclaration.PARAMETERS_PROPERTY);
+		final ArrayList<Integer> threadStarterParameters = info.getThreadStarterParameters();
+		for (int i : threadStarterParameters) {
+			threadStarters.add(params.get(i).resolveBinding());
+		}
 
 		// If we've got source, we should check access rules
 		if (node != null && node.getBody() != null) {
@@ -752,7 +762,7 @@ public class ValidationVisitor implements ITaskVisitor {
 			final Set<IVariableBinding> writeAccess = new HashSet<IVariableBinding>();
 			final Set<IMethodBinding> execAccess = new HashSet<IMethodBinding>();
 
-			AccessBuilder builder = new AccessBuilder(this, resource,
+			MethodBodyVerifier builder = new MethodBodyVerifier(this, resource,
 					readAccess, writeAccess, execAccess);
 			builder.buildAccessStructures(node.getBody());
 
@@ -782,7 +792,6 @@ public class ValidationVisitor implements ITaskVisitor {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	private FieldInformation getFieldInfo(IVariableBinding binding)
 			throws CircularReferenceException {
 

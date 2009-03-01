@@ -1,9 +1,10 @@
 /**
  * 
  */
-package com.google.code.annatasha.validator.internal.build;
+package com.google.code.annatasha.validator.internal.build.tasks;
 
 import org.eclipse.core.runtime.CoreException;
+
 
 public interface ITaskVisitor {
 	
