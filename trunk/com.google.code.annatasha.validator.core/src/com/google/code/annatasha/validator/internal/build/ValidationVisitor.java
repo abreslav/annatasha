@@ -74,7 +74,8 @@ public class ValidationVisitor implements ITaskVisitor {
 
 	@SuppressWarnings("unchecked")
 	private void validateMethodInformation(MethodInformation information,
-			IResource resource, MethodDeclaration node) throws CoreException {
+			IResource resource, MethodDeclaration node) throws CoreException,
+			CircularReferenceException {
 		// Check ExecPermissions validity
 		if (!information.areExecPermissionsValid()) {
 			List<IExtendedModifier> modifiers = node.modifiers();
@@ -103,6 +104,25 @@ public class ValidationVisitor implements ITaskVisitor {
 		}
 		if (!information.areInheritedExecPermissionsValid()) {
 			reportError(resource, node, Error.ExecPermissionsInheritedViolation);
+		}
+
+		// Thread starters
+		if (!information.areThreadStartersValid()) {
+			boolean localProblem = false;
+			IMethodBinding methodBinding = node.resolveBinding();
+			ITypeBinding[] parameterTypes = methodBinding.getParameterTypes();
+			for (int p : information.getThreadStarterParameters()) {
+				TypeInformation typeInfo = getTypeInfo(parameterTypes[p]);
+				if (!typeInfo.isEntryPoint()
+						&& !typeInfo.isInheritedFromEntryPoint()) {
+					reportError(resource, (ASTNode) node.parameters().get(p),
+							Error.ThreadStarterArgumentInvalid);
+					localProblem = true;
+				}
+			}
+			if (!localProblem) {
+				reportError(resource, node, Error.ThreadStarterArgumentsDiffer);
+			}
 		}
 	}
 
@@ -574,6 +594,7 @@ public class ValidationVisitor implements ITaskVisitor {
 					}
 				}
 
+				ITypeBinding[] parameterTypes = binding.getParameterTypes();
 				int paramsCount = binding.getParameterTypes().length;
 				ArrayList<Integer> selfList = new ArrayList<Integer>();
 				for (int i = 0; i < paramsCount; ++i) {
@@ -582,6 +603,9 @@ public class ValidationVisitor implements ITaskVisitor {
 						if (ClassNames.THREAD_STARTER.equals(ann
 								.getAnnotationType().getQualifiedName())) {
 							selfList.add(i);
+							TypeInformation info = getTypeInfo(parameterTypes[i]);
+							areParametersValid &= info.isEntryPoint()
+									|| info.isInheritedFromEntryPoint();
 						}
 					}
 				}
@@ -605,7 +629,7 @@ public class ValidationVisitor implements ITaskVisitor {
 						superDeclarations, execPermissions,
 						isLocalExecPermissionValid,
 						isInheritedExecPermissionValid, isEntryPoint,
-						isInheritedFromEntryPoint, selfList);
+						isInheritedFromEntryPoint, selfList, areParametersValid);
 
 				resolved.put(binding, result);
 			} finally {
@@ -896,7 +920,10 @@ public class ValidationVisitor implements ITaskVisitor {
 				"ExecPermissions cannot be specified in thread starter method"), InvalidTypeCast(
 				0x11, "Invalid typecast"), ExecPermissionsInheritedViolation(
 				0x12,
-				"Execution permissions for method violate inherited execution permissions");
+				"Execution permissions for method violate inherited execution permissions"), ThreadStarterArgumentInvalid(
+				0x13, "Thread starter argument of non-EntryPoint class"), ThreadStarterArgumentsDiffer(
+				0x14,
+				"Thread starter arguments differ in method and its super-declaration and/or super-definitions");
 
 		public final int code;
 		public final String message;
