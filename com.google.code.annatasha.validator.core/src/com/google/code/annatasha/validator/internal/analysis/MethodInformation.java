@@ -22,6 +22,7 @@ public final class MethodInformation implements IExecPermissionsHost {
 	private boolean inheritedExecPermissionsValid;
 	private final boolean entryPoint;
 	private final boolean inheritedFromEntryPoint;
+	private boolean threadStartersValid;
 
 	public MethodInformation(TypeInformation type,
 			MethodInformation superDefinition,
@@ -31,7 +32,7 @@ public final class MethodInformation implements IExecPermissionsHost {
 			boolean inheritedExecPermissionsValid,
 			boolean entryPoint,
 			boolean inheritedFromEntryPoint,
-			ArrayList<Integer> threadStarters) {
+			ArrayList<Integer> threadStarters, boolean areThreadStartersValid) {
 		this.type = type;
 		this.execPermissions = execPermissions;
 		this.execPermissionsValid = execPermissionsValid;
@@ -39,6 +40,7 @@ public final class MethodInformation implements IExecPermissionsHost {
 		this.entryPoint = entryPoint;
 		this.inheritedFromEntryPoint = inheritedFromEntryPoint;
 		this.threadStarters = threadStarters;
+		this.threadStartersValid = areThreadStartersValid;
 
 		this.superDefinition = superDefinition;
 		this.superDeclarations = new MethodInformation[superDeclarations.size()];
@@ -84,6 +86,10 @@ public final class MethodInformation implements IExecPermissionsHost {
 
 	public ArrayList<Integer> getThreadStarterParameters() {
 		return threadStarters;
+	}
+	
+	public boolean areThreadStartersValid() {
+		return threadStartersValid;
 	}
 
 }
