@@ -48,7 +48,7 @@ final class AnnatashaVisitor extends ASTVisitor {
 	public boolean visit(VariableDeclarationFragment node) {
 		IVariableBinding binding = node.resolveBinding();
 		if (binding.isField()) {
-			FieldTaskNode task = new FieldTaskNode(resource, node, binding);
+			FieldTaskNode task = new FieldTaskNode(resource, node.getParent(), binding);
 			tasks.add(task);
 		}
 		return true;
