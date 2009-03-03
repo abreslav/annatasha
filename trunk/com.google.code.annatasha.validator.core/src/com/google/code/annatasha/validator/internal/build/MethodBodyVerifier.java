@@ -2,7 +2,6 @@ package com.google.code.annatasha.validator.internal.build;
 
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
@@ -31,6 +30,8 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.Assignment.Operator;
 
+import com.google.code.annatasha.validator.internal.build.ValidationVisitor.Error;
+import com.google.code.annatasha.validator.internal.structures.FieldInformation;
 import com.google.code.annatasha.validator.internal.structures.MethodInformation;
 import com.google.code.annatasha.validator.internal.structures.TypeInformation;
 
@@ -39,30 +40,21 @@ public class MethodBodyVerifier extends ASTVisitor {
 	private final ValidationVisitor visitor;
 	private final IResource resource;
 
-	private final Set<IVariableBinding> readAccess;
-	private final Set<IVariableBinding> writeAccess;
-	private final Set<IMethodBinding> execAccess;
-
 	private int verifiers = 0;
 
 	private boolean readAccessFlag;
 	private boolean writeAccessFlag;
-	
+
 	private CoreException exception = null;
+	private MethodInformation method;
 
 	public MethodBodyVerifier(ValidationVisitor visitor, IResource resource,
-			final Set<IVariableBinding> readAccess,
-			final Set<IVariableBinding> writeAccess,
-			final Set<IMethodBinding> execAccess) {
+			MethodInformation method) {
 		this.visitor = visitor;
 		this.resource = resource;
-
-		this.readAccess = readAccess;
-		this.writeAccess = writeAccess;
-
-		this.execAccess = execAccess;
+		this.method = method;
 	}
-	
+
 	public void buildAccessStructures(ASTNode node) throws CoreException {
 		exception = null;
 		node.accept(this);
@@ -86,7 +78,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 	// EXPRESSION PROCESSING METHODS
 	@Override
 	public boolean visit(ArrayAccess node) {
-		verify(node.getArray(), true, true);
+		verify(node.getArray(), true, writeAccessFlag);
 		verify(node.getIndex(), true, false);
 		return false;
 	}
@@ -160,7 +152,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 		verify(node.getExpression(), true, false);
 
 		IVariableBinding binding = node.resolveFieldBinding();
-		pushAccessPolicy(binding);
+		checkAccessPolicy(node, binding);
 		return false;
 	}
 
@@ -191,7 +183,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 			// }
 		}
 
-		execAccess.add(binding);
+//		execAccess.add(binding);
 		return false;
 	}
 
@@ -201,7 +193,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 		if (binding instanceof IVariableBinding) {
 			IVariableBinding var = (IVariableBinding) binding;
 			verify(node.getQualifier(), true, false);
-			pushAccessPolicy(var);
+			checkAccessPolicy(node, var);
 		}
 		return false;
 	}
@@ -211,7 +203,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 		IBinding binding = node.resolveBinding();
 		if (binding instanceof IVariableBinding) {
 			IVariableBinding var = (IVariableBinding) binding;
-			pushAccessPolicy(var);
+			checkAccessPolicy(node, var);
 		}
 		return false;
 	}
@@ -219,7 +211,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 	@SuppressWarnings("unchecked")
 	@Override
 	public boolean visit(SuperConstructorInvocation node) {
-//		verify(node.getExpression(), true, false);
+		// verify(node.getExpression(), true, false);
 
 		List<Expression> params = (List<Expression>) node
 				.getStructuralProperty(SuperConstructorInvocation.ARGUMENTS_PROPERTY);
@@ -232,7 +224,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 	@Override
 	public boolean visit(SuperFieldAccess node) {
 		IVariableBinding var = node.resolveFieldBinding();
-		pushAccessPolicy(var);
+		checkAccessPolicy(node, var);
 		return false;
 	}
 
@@ -245,7 +237,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 			verify(param, true, false);
 		}
 
-		execAccess.add(node.resolveMethodBinding());
+//		execAccess.add(node.resolveMethodBinding());
 		return false;
 	}
 
@@ -270,16 +262,32 @@ public class MethodBodyVerifier extends ASTVisitor {
 	}
 
 	/**
+	 * @param node
+	 *            TODO
 	 * @param binding
 	 */
-	private void pushAccessPolicy(IVariableBinding binding) {
+	private void checkAccessPolicy(ASTNode node, IVariableBinding binding) {
 		assert verifiers != 0;
 
 		if (binding.isField()) {
-			if (readAccessFlag)
-				readAccess.add(binding);
-			if (writeAccessFlag)
-				writeAccess.add(binding);
+			try {
+				FieldInformation fieldInfo = visitor.getFieldInfo(binding);
+				
+				if (readAccessFlag) {
+					if (!method.getExecPermissions().mightAccess(fieldInfo.getReadPermissions())) {
+						visitor.reportError(resource, node, Error.MethodAttemptsToReadInaccessibleVariable);
+					}
+				}
+					
+				if (writeAccessFlag) {
+					if (!method.getExecPermissions().mightAccess(fieldInfo.getReadPermissions())) {
+						visitor.reportError(resource, node, Error.MethodAttemptsToWriteInaccessibleVariable);
+					}
+				}
+			} catch (CircularReferenceException e) {
+			} catch (CoreException e) {
+				exception = e;
+			}
 		}
 	}
 

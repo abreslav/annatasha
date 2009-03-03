@@ -751,7 +751,8 @@ public class ValidationVisitor implements ITaskVisitor {
 
 		List<VariableDeclaration> params = (List<VariableDeclaration>) node
 				.getStructuralProperty(MethodDeclaration.PARAMETERS_PROPERTY);
-		final ArrayList<Integer> threadStarterParameters = info.getThreadStarterParameters();
+		final ArrayList<Integer> threadStarterParameters = info
+				.getThreadStarterParameters();
 		for (int i : threadStarterParameters) {
 			threadStarters.add(params.get(i).resolveBinding());
 		}
@@ -763,7 +764,7 @@ public class ValidationVisitor implements ITaskVisitor {
 			final Set<IMethodBinding> execAccess = new HashSet<IMethodBinding>();
 
 			MethodBodyVerifier builder = new MethodBodyVerifier(this, resource,
-					readAccess, writeAccess, execAccess);
+					info);
 			builder.buildAccessStructures(node.getBody());
 
 			for (IVariableBinding read : readAccess) {
@@ -792,7 +793,7 @@ public class ValidationVisitor implements ITaskVisitor {
 		}
 	}
 
-	private FieldInformation getFieldInfo(IVariableBinding binding)
+	FieldInformation getFieldInfo(IVariableBinding binding)
 			throws CircularReferenceException {
 
 		FieldInformation result = (FieldInformation) resolved.get(binding);
