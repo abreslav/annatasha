@@ -45,6 +45,7 @@ public class ValidationVisitor implements ITaskVisitor {
 
 	private final Set<IVariableBinding> threadStarters = new HashSet<IVariableBinding>();
 	private final Map<IBinding, TaskNode> bindings;
+	private int errorsCounter;
 
 	public ValidationVisitor(final Map<IBinding, TaskNode> bindings) {
 		this.bindings = bindings;
@@ -82,6 +83,9 @@ public class ValidationVisitor implements ITaskVisitor {
 	private void validateMethodInformation(MethodInformation information,
 			IResource resource, MethodDeclaration node) throws CoreException,
 			CircularReferenceException {
+
+		int storedErrorCounter = errorsCounter;
+
 		// Check ExecPermissions validity
 		if (!information.areExecPermissionsValid()) {
 			List<IExtendedModifier> modifiers = node.modifiers();
@@ -130,6 +134,12 @@ public class ValidationVisitor implements ITaskVisitor {
 				reportError(resource, node, Error.ThreadStarterArgumentsDiffer);
 			}
 		}
+
+		// if (!information.isValid() && errorsCounter == storedErrorCounter) {
+		// reportError(resource, node,
+		// Error.InternalErrorInvalidObjectNotReported);
+		// }
+
 	}
 
 	public void visit(FieldTaskNode fieldTask) throws CoreException {
@@ -289,6 +299,7 @@ public class ValidationVisitor implements ITaskVisitor {
 									.isInheritedFromEntryPoint();
 				}
 
+				boolean hasSuperThreadMarkers;
 				for (int i = 0; i < interfacesInformation.length; ++i) {
 					isInheritedFromEntryPoint |= interfacesInformation[i]
 							.isEntryPoint()
@@ -298,10 +309,13 @@ public class ValidationVisitor implements ITaskVisitor {
 						superThreadMarkers.add(interfacesInformation[i]);
 					}
 				}
-				isThreadStarter = isClass && superThreadMarkers.size() != 0;
+				hasSuperThreadMarkers = superThreadMarkers.size() != 0;
+
+				isThreadStarter = isClass && hasSuperThreadMarkers;
 				isInvalidThreadStarter = isThreadStarter
 						&& (superThreadMarkers.size() != 1 || !isInheritedFromEntryPoint);
 
+				boolean hasThreadMarkerMark = false;
 				for (IAnnotationBinding annotation : binding.getAnnotations()) {
 					if (ClassNames.EXEC_PERMISSIONS.equals(annotation
 							.getAnnotationType().getQualifiedName())) {
@@ -310,13 +324,16 @@ public class ValidationVisitor implements ITaskVisitor {
 						execPermissions = result.execPermissions;
 					} else if (ClassNames.THREAD_MARKER.equals(annotation
 							.getAnnotationType().getQualifiedName())) {
-						isThreadMarker = true;
+						hasThreadMarkerMark = true;
 					}
 				}
+				isThreadMarker = (isInterface && hasSuperThreadMarkers)
+						|| hasThreadMarkerMark;
 				isThreadMarkerValid = !isThreadMarker
 						|| (isInterface
 								&& superThreadMarkers.size() == interfacesInformation.length
-								&& binding.getDeclaredMethods().length == 0 && execPermissions == null);
+								&& binding.getDeclaredMethods().length == 0
+								&& execPermissions == null && hasThreadMarkerMark);
 
 				isAnnotationOrEnumValid = !isAnnotationOrEnum
 						|| (execPermissions == null && !isThreadMarker);
@@ -330,7 +347,7 @@ public class ValidationVisitor implements ITaskVisitor {
 
 				typeInformation = new TypeInformation(binding, isClass,
 						isInterface, isAnnotationOrEnum, isThreadMarker,
-						isThreadStarter, isEntryPoint,
+						isThreadStarter, !isInvalidThreadStarter, isEntryPoint,
 						isInheritedFromEntryPoint, superClassInformation,
 						interfacesInformation, stm, execPermissions,
 						isExecPermissionValid, isValid);
@@ -422,26 +439,61 @@ public class ValidationVisitor implements ITaskVisitor {
 		// Check thread starter validity
 		if (information.isThreadStarter()) {
 			if (information.getSuperThreadMarkers().length != 1) {
-				reportError(resource, node,
+				reportError(resource, declNode.getName(),
 						Error.ExactlyOneThreadMarkerExpectedForThreadStarter);
 			}
 			if (!information.isInheritedFromEntryPoint()) {
-				reportError(resource, node,
+				reportError(resource, declNode.getName(),
 						Error.ThreadStarterNotInheritedFromEntryPoint);
 			}
 		}
 
 		// Check thread marker validity
 		if (information.isThreadMarker()) {
-			if (!information.isInterface()) {
-				reportError(resource, node, Error.ThreadMarkerMustBeAnInterface);
+			ASTNode tmNode = null;
+			ASTNode exNode = null;
+			List<ASTNode> modifiers = declNode.modifiers();
+			for (ASTNode modif : modifiers) {
+				if (modif instanceof Annotation) {
+					Annotation a = (Annotation) modif;
+					final String fqn = a.resolveAnnotationBinding()
+							.getAnnotationType().getQualifiedName();
+					if (ClassNames.THREAD_MARKER.equals(fqn)) {
+						tmNode = a;
+						break;
+					} else if (ClassNames.EXEC_PERMISSIONS.equals(fqn)) {
+						exNode = a;
+					}
+				}
 			}
-			if (information.getBinding().getDeclaredMethods().length != 0) {
-				reportError(resource, node, Error.ThreadMarkerMustHaveNoMethods);
+			if (tmNode == null) {
+				reportError(resource, declNode.getName(),
+						Error.ThreadMarkerMustBeSpecifiedExplicitly);
+				tmNode = declNode.getName();
+			}
+			if (!information.isInterface()) {
+				reportError(resource, tmNode,
+						Error.ThreadMarkerMustBeAnInterface);
+			} else if (information.getBinding().getDeclaredMethods().length != 0) {
+				reportError(resource, tmNode,
+						Error.ThreadMarkerMustHaveNoMethods);
 			}
 			if (information.getExecPermissions() != null) {
-				reportError(resource, node,
+				reportError(resource, exNode,
 						Error.ThreadMarkerCannotSpecifyExecPermissions);
+			}
+			List<Type> types = declNode.superInterfaceTypes();
+			for (Type type : types) {
+				TypeInformation sI;
+				try {
+					sI = getTypeInfo(type.resolveBinding());
+					if (!sI.isThreadMarker()) {
+						reportError(resource, type,
+								Error.ThreadMarkerInvalidInheritance);
+					}
+				} catch (CircularReferenceException e) {
+					assert false;
+				}
 			}
 		}
 
@@ -506,6 +558,9 @@ public class ValidationVisitor implements ITaskVisitor {
 				boolean isInheritedExecPermissionValid = true;
 				Permissions execPermissions = null;
 
+				boolean isThreadStarter = false;
+				boolean isValid = true;
+
 				MethodInformation superDefinition = getSuperDefinition(binding,
 						typeBinding);
 
@@ -551,7 +606,9 @@ public class ValidationVisitor implements ITaskVisitor {
 					}
 				}
 
-				if (typeInfo.isThreadStarter()) {
+				isThreadStarter = typeInfo.isThreadStarter()
+						&& (isEntryPoint || isInheritedFromEntryPoint);
+				if (isThreadStarter) {
 					if (execPermissions != null) {
 						isLocalExecPermissionValid = false;
 					}
@@ -565,14 +622,19 @@ public class ValidationVisitor implements ITaskVisitor {
 					execPermissions = Permissions.Any;
 				}
 
-				if (superDefinition != null) {
-					isInheritedExecPermissionValid &= superDefinition
-							.getExecPermissions().mightAccess(execPermissions);
-				}
+				if (!typeInfo.isThreadStarter()
+						|| (!isEntryPoint && !isInheritedFromEntryPoint)) {
+					if (superDefinition != null) {
+						isInheritedExecPermissionValid &= superDefinition
+								.getExecPermissions().mightAccess(
+										execPermissions);
+					}
 
-				for (MethodInformation superDeclaration : superDeclarations) {
-					isInheritedExecPermissionValid &= superDeclaration
-							.getExecPermissions().mightAccess(execPermissions);
+					for (MethodInformation superDeclaration : superDeclarations) {
+						isInheritedExecPermissionValid &= superDeclaration
+								.getExecPermissions().mightAccess(
+										execPermissions);
+					}
 				}
 
 				// Thread starters
@@ -602,13 +664,13 @@ public class ValidationVisitor implements ITaskVisitor {
 
 				ITypeBinding[] parameterTypes = binding.getParameterTypes();
 				int paramsCount = binding.getParameterTypes().length;
-				ArrayList<Integer> selfList = new ArrayList<Integer>();
+				ArrayList<Integer> threadStarterParams = new ArrayList<Integer>();
 				for (int i = 0; i < paramsCount; ++i) {
 					for (IAnnotationBinding ann : binding
 							.getParameterAnnotations(i)) {
 						if (ClassNames.THREAD_STARTER.equals(ann
 								.getAnnotationType().getQualifiedName())) {
-							selfList.add(i);
+							threadStarterParams.add(i);
 							TypeInformation info = getTypeInfo(parameterTypes[i]);
 							areParametersValid &= info.isEntryPoint()
 									|| info.isInheritedFromEntryPoint();
@@ -617,14 +679,14 @@ public class ValidationVisitor implements ITaskVisitor {
 				}
 
 				if (tsParams == null) {
-					tsParams = selfList;
+					tsParams = threadStarterParams;
 				} else {
-					if (tsParams.size() != selfList.size()) {
+					if (tsParams.size() != threadStarterParams.size()) {
 						areParametersValid = false;
 					} else {
 						for (int i = 0; i < tsParams.size(); ++i) {
-							if (tsParams.get(i).intValue() != selfList.get(i)
-									.intValue()) {
+							if (tsParams.get(i).intValue() != threadStarterParams
+									.get(i).intValue()) {
 								areParametersValid = false;
 							}
 						}
@@ -635,7 +697,8 @@ public class ValidationVisitor implements ITaskVisitor {
 						superDeclarations, execPermissions,
 						isLocalExecPermissionValid,
 						isInheritedExecPermissionValid, isEntryPoint,
-						isInheritedFromEntryPoint, selfList, areParametersValid);
+						isInheritedFromEntryPoint, isThreadStarter,
+						threadStarterParams, areParametersValid);
 
 				resolved.put(binding, result);
 			} finally {
@@ -878,6 +941,7 @@ public class ValidationVisitor implements ITaskVisitor {
 		marker.setAttribute(IMarker.CHAR_START, node.getStartPosition());
 		marker.setAttribute(IMarker.CHAR_END, node.getStartPosition()
 				+ node.getLength());
+		++errorsCounter;
 	}
 
 	private static interface ClassNames {
@@ -911,8 +975,8 @@ public class ValidationVisitor implements ITaskVisitor {
 				"An type cannot both be thread marker and have execution permissions specified"), ThreadMarkerMustBeAnInterface(
 				0x2, "Thread marker must be an interface"), ThreadMarkerSupertypeError(
 				0x3,
-				"Thread marker may only extend thread markers or java.lang.Runnable"), ThreadMarkerNotRunnable(
-				0x4, "Thread marker must extend java.lang.Runnable"), PermissionsMustEnumerateThreadMarkers(
+				"Thread marker may only extend thread markers or java.lang.Runnable"), ThreadMarkerInvalidInheritance(
+				0x4, "Thread marker might only extend other thread markers"), PermissionsMustEnumerateThreadMarkers(
 				0x5, "Only thread markers may specify permissions"), MethodAttemptsToReadInaccessibleVariable(
 				0x6, "Method attempts to read inaccessible variable"), MethodAttemptsToWriteInaccessibleVariable(
 				0x7, "Method attempts to write inaccessible variable"), MethodAttemptsToExecInaccessibleMethod(
@@ -933,7 +997,11 @@ public class ValidationVisitor implements ITaskVisitor {
 				"Execution permissions for method violate inherited execution permissions"), ThreadStarterArgumentInvalid(
 				0x13, "Thread starter argument of non-EntryPoint class"), ThreadStarterArgumentsDiffer(
 				0x14,
-				"Thread starter arguments differ in method and its super-declaration and/or super-definitions");
+				"Thread starter arguments differ in method and its super-declaration and/or super-definitions"), InternalErrorInvalidObjectNotReported(
+				0x15,
+				"Internal error: code unit seems invalid, but not reported as invalid"), ThreadMarkerMustBeSpecifiedExplicitly(
+				0x16,
+				"Interfaces extending thread markers must be explicitly specified as thread marker");
 
 		public final int code;
 		public final String message;

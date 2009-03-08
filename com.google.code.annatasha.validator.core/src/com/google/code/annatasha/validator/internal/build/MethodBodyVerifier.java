@@ -20,6 +20,8 @@ import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.PostfixExpression;
+import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
@@ -245,6 +247,18 @@ public class MethodBodyVerifier extends ASTVisitor {
 	public boolean visit(ThisExpression node) {
 		return false;
 	}
+	
+	@Override
+	public boolean visit(PostfixExpression node) {
+		verify(node.getOperand(), true, true);
+		return true;
+	}
+
+	@Override
+	public boolean visit(PrefixExpression node) {
+		verify(node.getOperand(), true, true);
+		return true;
+	}
 
 	private void verify(Expression node, boolean rFlag, boolean wFlag) {
 		boolean oldR = readAccessFlag;
@@ -280,7 +294,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 				}
 					
 				if (writeAccessFlag) {
-					if (!method.getExecPermissions().mightAccess(fieldInfo.getReadPermissions())) {
+					if (!method.getExecPermissions().mightAccess(fieldInfo.getWritePermissions())) {
 						visitor.reportError(resource, node, Error.MethodAttemptsToWriteInaccessibleVariable);
 					}
 				}
