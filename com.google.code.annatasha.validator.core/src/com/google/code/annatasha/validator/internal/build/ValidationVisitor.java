@@ -84,20 +84,19 @@ public class ValidationVisitor implements ITaskVisitor {
 			IResource resource, MethodDeclaration node) throws CoreException,
 			CircularReferenceException {
 
-		int storedErrorCounter = errorsCounter;
+		Annotation annotation = null;
+		List<IExtendedModifier> modifiers = node.modifiers();
+		for (IExtendedModifier modifier : modifiers) {
+			if (modifier instanceof Annotation
+					&& ((Annotation) modifier).resolveAnnotationBinding()
+							.getAnnotationType().getQualifiedName().equals(
+									ClassNames.EXEC_PERMISSIONS)) {
+				annotation = (Annotation) modifier;
+			}
+		}
 
 		// Check ExecPermissions validity
 		if (!information.areExecPermissionsValid()) {
-			List<IExtendedModifier> modifiers = node.modifiers();
-			Annotation annotation = null;
-			for (IExtendedModifier modifier : modifiers) {
-				if (modifier instanceof Annotation
-						&& ((Annotation) modifier).resolveAnnotationBinding()
-								.getAnnotationType().getQualifiedName().equals(
-										ClassNames.EXEC_PERMISSIONS)) {
-					annotation = (Annotation) modifier;
-				}
-			}
 			if (annotation != null) {
 				if ((information.isEntryPoint() || information
 						.isInheritedFromEntryPoint())
@@ -113,7 +112,8 @@ public class ValidationVisitor implements ITaskVisitor {
 			}
 		}
 		if (!information.areInheritedExecPermissionsValid()) {
-			reportError(resource, node, Error.ExecPermissionsInheritedViolation);
+			reportError(resource, annotation == null ? node.getName()
+					: annotation, Error.ExecPermissionsInheritedViolation);
 		}
 
 		// Thread starters
@@ -131,7 +131,8 @@ public class ValidationVisitor implements ITaskVisitor {
 				}
 			}
 			if (!localProblem) {
-				reportError(resource, node, Error.ThreadStarterArgumentsDiffer);
+				reportError(resource, node.getName(),
+						Error.ThreadStarterArgumentsDiffer);
 			}
 		}
 
@@ -992,7 +993,7 @@ public class ValidationVisitor implements ITaskVisitor {
 				0xF, "There must be no methods declared in thread marker"), ExecPermissionsInThreadStarterMethod(
 				0x10,
 				"ExecPermissions cannot be specified in thread starter method"), InvalidTypeCast(
-				0x11, "Invalid typecast"), ExecPermissionsInheritedViolation(
+				0x11, "Type cast loses thread marker"), ExecPermissionsInheritedViolation(
 				0x12,
 				"Execution permissions for method violate inherited execution permissions"), ThreadStarterArgumentInvalid(
 				0x13, "Thread starter argument of non-EntryPoint class"), ThreadStarterArgumentsDiffer(
@@ -1012,8 +1013,8 @@ public class ValidationVisitor implements ITaskVisitor {
 		}
 	}
 
-	public MethodInformation getMethodInfo(IMethodBinding binding) {
-		return (MethodInformation) resolved.get(binding);
-
+	public MethodInformation getMethodInfo(IMethodBinding binding)
+			throws CircularReferenceException {
+		return getHeadMethodInfo(binding);
 	}
 }

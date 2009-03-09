@@ -1,6 +1,6 @@
 package com.google.code.annatasha.validator.internal.build;
 
-import java.util.Iterator;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.core.resources.IResource;
@@ -80,7 +80,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 	// EXPRESSION PROCESSING METHODS
 	@Override
 	public boolean visit(ArrayAccess node) {
-		verify(node.getArray(), true, writeAccessFlag);
+		verify(node.getArray(), readAccessFlag, writeAccessFlag);
 		verify(node.getIndex(), true, false);
 		return false;
 	}
@@ -145,8 +145,16 @@ public class MethodBodyVerifier extends ASTVisitor {
 	public boolean visit(VariableDeclarationFragment node) {
 		if (node.getInitializer() != null) {
 			verify(node.getInitializer(), true, false);
+			try {
+				validateAssignment(node, node.resolveBinding().getType(), node
+						.getInitializer().resolveTypeBinding());
+			} catch (CircularReferenceException e) {
+				// XXX handle error
+			} catch (CoreException e) {
+				exception = e;
+			}
 		}
-		return super.visit(node);
+		return true;
 	}
 
 	@Override
@@ -162,30 +170,47 @@ public class MethodBodyVerifier extends ASTVisitor {
 	@Override
 	public boolean visit(MethodInvocation node) {
 		IMethodBinding binding = node.resolveMethodBinding();
-		MethodInformation info = visitor.getMethodInfo(binding);
-		// boolean[] threadStarters = info.getThreadStarterFlags();
+		MethodInformation info;
+		try {
+			info = visitor.getMethodInfo(binding);
 
-		if (node.getExpression() != null) {
-			verify(node.getExpression(), true, false);
-		}
+			ArrayList<Integer> threadStarterParameters = info
+					.getThreadStarterParameters();
+			List<Expression> params = node.arguments();
+			ITypeBinding[] paramsTypes = binding.getParameterTypes();
 
-		List<Expression> params = (List<Expression>) node
-				.getStructuralProperty(MethodInvocation.ARGUMENTS_PROPERTY);
-		List<ITypeBinding> paramsTypes = (List<ITypeBinding>) node
-				.getStructuralProperty(MethodInvocation.TYPE_ARGUMENTS_PROPERTY);
-		Iterator<ITypeBinding> paramTypeIterator = paramsTypes.iterator();
-		int i = 0;
-		for (Expression param : params) {
+			if (node.getExpression() != null) {
+				verify(node.getExpression(), true, false);
+			}
+
+			int cursor = 0;
+			int curValue = threadStarterParameters.size() > 0 ? threadStarterParameters
+					.get(0)
+					: -1;
+
+			int len = params.size();
+			for (int i = 0; i < len; ++i) {
+				final ITypeBinding paramType = paramsTypes[i];
+				final Expression paramValue = params.get(i);
+				boolean write = paramType.getDimensions() != 0;
+				verify(paramValue, true, write);
+				if (i != curValue) {
+					try {
+						validateAssignment(paramValue, paramType, paramValue
+								.resolveTypeBinding());
+					} catch (CoreException e) {
+						exception = e;
+					}
+				} else {
+					++cursor;
+					curValue = threadStarterParameters.size() > cursor ? threadStarterParameters
+							.get(cursor)
+							: -1;
+				}
+			}
+		} catch (CircularReferenceException e1) {
 			// XXX
-			// ITypeBinding paramType = paramTypeIterator.next();
-			// verify(param, true, false);
-			// if (!threadStarters[i++]) {
-			// validateAssignment(param, paramType, param
-			// .resolveTypeBinding());
-			// }
 		}
-
-//		execAccess.add(binding);
 		return false;
 	}
 
@@ -239,7 +264,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 			verify(param, true, false);
 		}
 
-//		execAccess.add(node.resolveMethodBinding());
+		// execAccess.add(node.resolveMethodBinding());
 		return false;
 	}
 
@@ -247,7 +272,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 	public boolean visit(ThisExpression node) {
 		return false;
 	}
-	
+
 	@Override
 	public boolean visit(PostfixExpression node) {
 		verify(node.getOperand(), true, true);
@@ -286,16 +311,23 @@ public class MethodBodyVerifier extends ASTVisitor {
 		if (binding.isField()) {
 			try {
 				FieldInformation fieldInfo = visitor.getFieldInfo(binding);
-				
+
 				if (readAccessFlag) {
-					if (!method.getExecPermissions().mightAccess(fieldInfo.getReadPermissions())) {
-						visitor.reportError(resource, node, Error.MethodAttemptsToReadInaccessibleVariable);
+					if (!method.getExecPermissions().mightAccess(
+							fieldInfo.getReadPermissions())) {
+						visitor.reportError(resource, node,
+								Error.MethodAttemptsToReadInaccessibleVariable);
 					}
 				}
-					
+
 				if (writeAccessFlag) {
-					if (!method.getExecPermissions().mightAccess(fieldInfo.getWritePermissions())) {
-						visitor.reportError(resource, node, Error.MethodAttemptsToWriteInaccessibleVariable);
+					if (!method.getExecPermissions().mightAccess(
+							fieldInfo.getWritePermissions())) {
+						visitor
+								.reportError(
+										resource,
+										node,
+										Error.MethodAttemptsToWriteInaccessibleVariable);
 					}
 				}
 			} catch (CircularReferenceException e) {
