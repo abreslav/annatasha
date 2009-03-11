@@ -1002,7 +1002,9 @@ public class ValidationVisitor implements ITaskVisitor {
 				0x15,
 				"Internal error: code unit seems invalid, but not reported as invalid"), ThreadMarkerMustBeSpecifiedExplicitly(
 				0x16,
-				"Interfaces extending thread markers must be explicitly specified as thread marker");
+				"Interfaces extending thread markers must be explicitly specified as thread marker"), MethodAttemptsToAccessThreadStarterParameter(
+				0x17,
+				"Method attempts to directly access thread starter parameter");
 
 		public final int code;
 		public final String message;
@@ -1016,5 +1018,9 @@ public class ValidationVisitor implements ITaskVisitor {
 	public MethodInformation getMethodInfo(IMethodBinding binding)
 			throws CircularReferenceException {
 		return getHeadMethodInfo(binding);
+	}
+
+	public boolean isThreadStarter(IVariableBinding binding) {
+		return threadStarters.contains(binding);
 	}
 }
