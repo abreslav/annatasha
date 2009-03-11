@@ -46,6 +46,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 
 	private boolean readAccessFlag;
 	private boolean writeAccessFlag;
+	private boolean threadStarterParameter;
 
 	private CoreException exception = null;
 	private MethodInformation method;
@@ -80,16 +81,16 @@ public class MethodBodyVerifier extends ASTVisitor {
 	// EXPRESSION PROCESSING METHODS
 	@Override
 	public boolean visit(ArrayAccess node) {
-		verify(node.getArray(), readAccessFlag, writeAccessFlag);
-		verify(node.getIndex(), true, false);
+		verify(node.getArray(), readAccessFlag, writeAccessFlag, false);
+		verify(node.getIndex(), true, false, false);
 		return false;
 	}
 
 	@Override
 	public boolean visit(AssertStatement node) {
-		verify(node.getExpression(), true, false);
+		verify(node.getExpression(), true, false, false);
 		if (node.getMessage() != null) {
-			verify(node.getExpression(), true, false);
+			verify(node.getExpression(), true, false, false);
 		}
 		return false;
 	}
@@ -97,8 +98,8 @@ public class MethodBodyVerifier extends ASTVisitor {
 	@Override
 	public boolean visit(Assignment node) {
 		verify(node.getLeftHandSide(), node.getOperator() != Operator.ASSIGN,
-				true);
-		verify(node.getRightHandSide(), true, false);
+				true, false);
+		verify(node.getRightHandSide(), true, false, false);
 
 		try {
 			ITypeBinding lhs = node.getLeftHandSide().resolveTypeBinding();
@@ -135,7 +136,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 				.getStructuralProperty(ClassInstanceCreation.ARGUMENTS_PROPERTY);
 		if (params != null) {
 			for (Expression param : params) {
-				verify(param, true, false);
+				verify(param, true, false, false);
 			}
 		}
 		return false;
@@ -144,7 +145,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 	@Override
 	public boolean visit(VariableDeclarationFragment node) {
 		if (node.getInitializer() != null) {
-			verify(node.getInitializer(), true, false);
+			verify(node.getInitializer(), true, false, false);
 			try {
 				validateAssignment(node, node.resolveBinding().getType(), node
 						.getInitializer().resolveTypeBinding());
@@ -159,7 +160,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 
 	@Override
 	public boolean visit(FieldAccess node) {
-		verify(node.getExpression(), true, false);
+		verify(node.getExpression(), true, false, false);
 
 		IVariableBinding binding = node.resolveFieldBinding();
 		checkAccessPolicy(node, binding);
@@ -180,7 +181,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 			ITypeBinding[] paramsTypes = binding.getParameterTypes();
 
 			if (node.getExpression() != null) {
-				verify(node.getExpression(), true, false);
+				verify(node.getExpression(), true, false, false);
 			}
 
 			int cursor = 0;
@@ -193,7 +194,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 				final ITypeBinding paramType = paramsTypes[i];
 				final Expression paramValue = params.get(i);
 				boolean write = paramType.getDimensions() != 0;
-				verify(paramValue, true, write);
+				verify(paramValue, true, write, false);
 				if (i != curValue) {
 					try {
 						validateAssignment(paramValue, paramType, paramValue
@@ -219,7 +220,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 		IBinding binding = node.resolveBinding();
 		if (binding instanceof IVariableBinding) {
 			IVariableBinding var = (IVariableBinding) binding;
-			verify(node.getQualifier(), true, false);
+			verify(node.getQualifier(), true, false, false);
 			checkAccessPolicy(node, var);
 		}
 		return false;
@@ -243,7 +244,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 		List<Expression> params = (List<Expression>) node
 				.getStructuralProperty(SuperConstructorInvocation.ARGUMENTS_PROPERTY);
 		for (Expression param : params) {
-			verify(param, true, false);
+			verify(param, true, false, false);
 		}
 		return false;
 	}
@@ -261,7 +262,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 		List<Expression> params = (List<Expression>) node
 				.getStructuralProperty(MethodInvocation.ARGUMENTS_PROPERTY);
 		for (Expression param : params) {
-			verify(param, true, false);
+			verify(param, true, false, false);
 		}
 
 		// execAccess.add(node.resolveMethodBinding());
@@ -275,27 +276,30 @@ public class MethodBodyVerifier extends ASTVisitor {
 
 	@Override
 	public boolean visit(PostfixExpression node) {
-		verify(node.getOperand(), true, true);
+		verify(node.getOperand(), true, true, false);
 		return true;
 	}
 
 	@Override
 	public boolean visit(PrefixExpression node) {
-		verify(node.getOperand(), true, true);
+		verify(node.getOperand(), true, true, false);
 		return true;
 	}
 
-	private void verify(Expression node, boolean rFlag, boolean wFlag) {
+	private void verify(Expression node, boolean rFlag, boolean wFlag, boolean tsFlag) {
 		boolean oldR = readAccessFlag;
 		boolean oldW = writeAccessFlag;
+		boolean oldTS = threadStarterParameter;
 		readAccessFlag = rFlag;
 		writeAccessFlag = wFlag;
+		threadStarterParameter = tsFlag;
 		++verifiers;
 		try {
 			node.accept(this);
 		} finally {
 			readAccessFlag = oldR;
 			writeAccessFlag = oldW;
+			threadStarterParameter = oldTS;
 			--verifiers;
 		}
 	}
@@ -333,6 +337,14 @@ public class MethodBodyVerifier extends ASTVisitor {
 			} catch (CircularReferenceException e) {
 			} catch (CoreException e) {
 				exception = e;
+			}
+		} else if (binding.isParameter()) {
+			if (!threadStarterParameter && visitor.isThreadStarter(binding)) {
+				try {
+					visitor.reportError(resource, node, Error.MethodAttemptsToAccessThreadStarterParameter);
+				} catch (CoreException e) {
+					exception = e;
+				}
 			}
 		}
 	}
