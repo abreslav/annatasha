@@ -132,12 +132,15 @@ public class MethodBodyVerifier extends ASTVisitor {
 	@SuppressWarnings("unchecked")
 	@Override
 	public boolean visit(ClassInstanceCreation node) {
-		List<Expression> params = (List<Expression>) node
-				.getStructuralProperty(ClassInstanceCreation.ARGUMENTS_PROPERTY);
-		if (params != null) {
-			for (Expression param : params) {
-				verify(param, true, false, false);
-			}
+		try {
+			MethodInformation methodInfo = visitor.getMethodInfo(node
+					.resolveConstructorBinding());
+
+			List<Expression> params = node.arguments();
+			validateParameters(node.resolveConstructorBinding(), methodInfo,
+					params);
+		} catch (CircularReferenceException ex) {
+			// XXX handle
 		}
 		return false;
 	}
@@ -175,44 +178,57 @@ public class MethodBodyVerifier extends ASTVisitor {
 		try {
 			info = visitor.getMethodInfo(binding);
 
-			ArrayList<Integer> threadStarterParameters = info
-					.getThreadStarterParameters();
-			List<Expression> params = node.arguments();
-			ITypeBinding[] paramsTypes = binding.getParameterTypes();
-
 			if (node.getExpression() != null) {
 				verify(node.getExpression(), true, false, false);
 			}
 
-			int cursor = 0;
-			int curValue = threadStarterParameters.size() > 0 ? threadStarterParameters
-					.get(0)
-					: -1;
+			List<Expression> params = node.arguments();
 
-			int len = params.size();
-			for (int i = 0; i < len; ++i) {
-				final ITypeBinding paramType = paramsTypes[i];
-				final Expression paramValue = params.get(i);
-				boolean write = paramType.getDimensions() != 0;
-				verify(paramValue, true, write, false);
-				if (i != curValue) {
-					try {
-						validateAssignment(paramValue, paramType, paramValue
-								.resolveTypeBinding());
-					} catch (CoreException e) {
-						exception = e;
-					}
-				} else {
-					++cursor;
-					curValue = threadStarterParameters.size() > cursor ? threadStarterParameters
-							.get(cursor)
-							: -1;
-				}
-			}
+			validateParameters(binding, info, params);
 		} catch (CircularReferenceException e1) {
 			// XXX
 		}
 		return false;
+	}
+
+	/**
+	 * @param binding
+	 * @param info
+	 * @param params
+	 * @throws CircularReferenceException
+	 */
+	private void validateParameters(IMethodBinding binding,
+			MethodInformation info, List<Expression> params)
+			throws CircularReferenceException {
+		ArrayList<Integer> threadStarterParameters = info
+				.getThreadStarterParameters();
+		ITypeBinding[] paramsTypes = binding.getParameterTypes();
+
+		int cursor = 0;
+		int curValue = threadStarterParameters.size() > 0 ? threadStarterParameters
+				.get(0)
+				: -1;
+
+		int len = params.size();
+		for (int i = 0; i < len; ++i) {
+			final ITypeBinding paramType = paramsTypes[i];
+			final Expression paramValue = params.get(i);
+			boolean write = paramType.getDimensions() != 0;
+			verify(paramValue, true, write, i == curValue);
+			if (i != curValue) {
+				try {
+					validateAssignment(paramValue, paramType, paramValue
+							.resolveTypeBinding());
+				} catch (CoreException e) {
+					exception = e;
+				}
+			} else {
+				++cursor;
+				curValue = threadStarterParameters.size() > cursor ? threadStarterParameters
+						.get(cursor)
+						: -1;
+			}
+		}
 	}
 
 	@Override
@@ -239,12 +255,15 @@ public class MethodBodyVerifier extends ASTVisitor {
 	@SuppressWarnings("unchecked")
 	@Override
 	public boolean visit(SuperConstructorInvocation node) {
-		// verify(node.getExpression(), true, false);
+		try {
+			MethodInformation methodInfo = visitor.getMethodInfo(node
+					.resolveConstructorBinding());
 
-		List<Expression> params = (List<Expression>) node
-				.getStructuralProperty(SuperConstructorInvocation.ARGUMENTS_PROPERTY);
-		for (Expression param : params) {
-			verify(param, true, false, false);
+			List<Expression> params = node.arguments();
+			validateParameters(node.resolveConstructorBinding(), methodInfo,
+					params);
+		} catch (CircularReferenceException ex) {
+			// XXX handle
 		}
 		return false;
 	}
@@ -259,13 +278,14 @@ public class MethodBodyVerifier extends ASTVisitor {
 	@SuppressWarnings("unchecked")
 	@Override
 	public boolean visit(SuperMethodInvocation node) {
-		List<Expression> params = (List<Expression>) node
-				.getStructuralProperty(MethodInvocation.ARGUMENTS_PROPERTY);
-		for (Expression param : params) {
-			verify(param, true, false, false);
+		IMethodBinding binding = node.resolveMethodBinding();
+		MethodInformation info;
+		try {
+			info = visitor.getMethodInfo(binding);
+			validateParameters(binding, info, node.arguments());
+		} catch (CircularReferenceException e) {
+			// XXX handle
 		}
-
-		// execAccess.add(node.resolveMethodBinding());
 		return false;
 	}
 
@@ -286,7 +306,8 @@ public class MethodBodyVerifier extends ASTVisitor {
 		return true;
 	}
 
-	private void verify(Expression node, boolean rFlag, boolean wFlag, boolean tsFlag) {
+	private void verify(Expression node, boolean rFlag, boolean wFlag,
+			boolean tsFlag) {
 		boolean oldR = readAccessFlag;
 		boolean oldW = writeAccessFlag;
 		boolean oldTS = threadStarterParameter;
@@ -341,7 +362,8 @@ public class MethodBodyVerifier extends ASTVisitor {
 		} else if (binding.isParameter()) {
 			if (!threadStarterParameter && visitor.isThreadStarter(binding)) {
 				try {
-					visitor.reportError(resource, node, Error.MethodAttemptsToAccessThreadStarterParameter);
+					visitor.reportError(resource, node,
+							Error.MethodAttemptsToAccessThreadStarterParameter);
 				} catch (CoreException e) {
 					exception = e;
 				}

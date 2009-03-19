@@ -521,7 +521,6 @@ public class ValidationVisitor implements ITaskVisitor {
 
 	private MethodInformation getHeadMethodInfo(IMethodBinding binding)
 			throws CircularReferenceException {
-
 		MethodInformation result = (MethodInformation) resolved.get(binding);
 		if (result == null) {
 			if (underConstruction.contains(binding)) {
@@ -532,6 +531,16 @@ public class ValidationVisitor implements ITaskVisitor {
 
 				ITypeBinding typeBinding = binding.getDeclaringClass();
 				TypeInformation typeInfo = getTypeInfo(typeBinding);
+				ITypeBinding[] parameterTypes = binding.getParameterTypes();
+
+				StringBuilder fullMethodNameBuilder = new StringBuilder(
+						typeBinding.getQualifiedName() + "."
+								+ binding.getName() + "(");
+				for (int i = 0; i < parameterTypes.length; ++i) {
+					fullMethodNameBuilder.append(
+							parameterTypes[i].getQualifiedName()).append(",");
+				}
+				String fullMethodName = fullMethodNameBuilder.toString();
 
 				boolean isEntryPoint = false;
 				boolean isInheritedFromEntryPoint = false;
@@ -663,18 +672,23 @@ public class ValidationVisitor implements ITaskVisitor {
 					}
 				}
 
-				ITypeBinding[] parameterTypes = binding.getParameterTypes();
-				int paramsCount = binding.getParameterTypes().length;
-				ArrayList<Integer> threadStarterParams = new ArrayList<Integer>();
-				for (int i = 0; i < paramsCount; ++i) {
-					for (IAnnotationBinding ann : binding
-							.getParameterAnnotations(i)) {
-						if (ClassNames.THREAD_STARTER.equals(ann
-								.getAnnotationType().getQualifiedName())) {
-							threadStarterParams.add(i);
-							TypeInformation info = getTypeInfo(parameterTypes[i]);
-							areParametersValid &= info.isEntryPoint()
-									|| info.isInheritedFromEntryPoint();
+				ArrayList<Integer> threadStarterParams;
+				if (ThreadStartersParameters.containsKey(fullMethodName)) {
+					threadStarterParams = ThreadStartersParameters
+							.get(fullMethodName);
+				} else {
+					threadStarterParams = new ArrayList<Integer>();
+					int paramsCount = binding.getParameterTypes().length;
+					for (int i = 0; i < paramsCount; ++i) {
+						for (IAnnotationBinding ann : binding
+								.getParameterAnnotations(i)) {
+							if (ClassNames.THREAD_STARTER.equals(ann
+									.getAnnotationType().getQualifiedName())) {
+								threadStarterParams.add(i);
+								TypeInformation info = getTypeInfo(parameterTypes[i]);
+								areParametersValid &= info.isEntryPoint()
+										|| info.isInheritedFromEntryPoint();
+							}
 						}
 					}
 				}
@@ -1023,4 +1037,13 @@ public class ValidationVisitor implements ITaskVisitor {
 	public boolean isThreadStarter(IVariableBinding binding) {
 		return threadStarters.contains(binding);
 	}
+
+	private static HashMap<String, ArrayList<Integer>> ThreadStartersParameters = new HashMap<String, ArrayList<Integer>>();
+
+	static {
+		ThreadStartersParameters.put(
+				"java.lang.Thread.Thread(java.lang.Runnable,",
+				new ArrayList<Integer>(Arrays.asList(0)));
+	}
+
 }
