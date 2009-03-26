@@ -40,7 +40,7 @@ public final class SourceFileRequestor extends ASTRequestor {
 			bindings.put(task.getBinding(), task);
 		}
 
-		ValidationVisitor visitor = new ValidationVisitor(bindings);
+		AnnatashaValidationResolver visitor = new AnnatashaValidationResolver(bindings);
 		for (TaskNode task : tasks) {
 			task.acceptVisitor(visitor);
 		}

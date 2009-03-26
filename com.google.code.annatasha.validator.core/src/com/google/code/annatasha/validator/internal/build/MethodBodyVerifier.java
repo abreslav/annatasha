@@ -32,14 +32,14 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.Assignment.Operator;
 
-import com.google.code.annatasha.validator.internal.build.ValidationVisitor.Error;
+import com.google.code.annatasha.validator.internal.build.AnnatashaValidationResolver.Error;
 import com.google.code.annatasha.validator.internal.structures.FieldInformation;
 import com.google.code.annatasha.validator.internal.structures.MethodInformation;
 import com.google.code.annatasha.validator.internal.structures.TypeInformation;
 
 public class MethodBodyVerifier extends ASTVisitor {
 
-	private final ValidationVisitor visitor;
+	private final AnnatashaValidationResolver visitor;
 	private final IResource resource;
 
 	private int verifiers = 0;
@@ -51,7 +51,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 	private CoreException exception = null;
 	private MethodInformation method;
 
-	public MethodBodyVerifier(ValidationVisitor visitor, IResource resource,
+	public MethodBodyVerifier(AnnatashaValidationResolver visitor, IResource resource,
 			MethodInformation method) {
 		this.visitor = visitor;
 		this.resource = resource;
@@ -381,7 +381,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 						.getSuperThreadMarkers()[0] != srcInfo
 						.getSuperThreadMarkers()[0])) {
 			visitor.reportError(resource, node,
-					ValidationVisitor.Error.InvalidTypeCast);
+					AnnatashaValidationResolver.Error.InvalidTypeCast);
 		}
 	}
 

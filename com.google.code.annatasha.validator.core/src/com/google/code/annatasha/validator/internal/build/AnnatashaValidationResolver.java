@@ -38,7 +38,7 @@ import com.google.code.annatasha.validator.internal.structures.MethodInformation
 import com.google.code.annatasha.validator.internal.structures.Permissions;
 import com.google.code.annatasha.validator.internal.structures.TypeInformation;
 
-public class ValidationVisitor implements ITaskVisitor {
+public class AnnatashaValidationResolver implements ITaskVisitor {
 
 	private final Map<IBinding, Object> resolved = new HashMap<IBinding, Object>();
 	private final Set<IBinding> underConstruction = new HashSet<IBinding>();
@@ -47,7 +47,7 @@ public class ValidationVisitor implements ITaskVisitor {
 	private final Map<IBinding, TaskNode> bindings;
 	private int errorsCounter;
 
-	public ValidationVisitor(final Map<IBinding, TaskNode> bindings) {
+	public AnnatashaValidationResolver(final Map<IBinding, TaskNode> bindings) {
 		this.bindings = bindings;
 	}
 
@@ -676,6 +676,8 @@ public class ValidationVisitor implements ITaskVisitor {
 				if (ThreadStartersParameters.containsKey(fullMethodName)) {
 					threadStarterParams = ThreadStartersParameters
 							.get(fullMethodName);
+				} else if (fullMethodName.startsWith("java.")) {
+					threadStarterParams = tsParams == null ? new ArrayList<Integer>() : tsParams;
 				} else {
 					threadStarterParams = new ArrayList<Integer>();
 					int paramsCount = binding.getParameterTypes().length;
@@ -1043,6 +1045,8 @@ public class ValidationVisitor implements ITaskVisitor {
 	static {
 		ThreadStartersParameters.put(
 				"java.lang.Thread.Thread(java.lang.Runnable,",
+				new ArrayList<Integer>(Arrays.asList(0)));
+		ThreadStartersParameters.put("java.util.concurrent.Executor.execute(java.lang.Runnable,", 
 				new ArrayList<Integer>(Arrays.asList(0)));
 	}
 
