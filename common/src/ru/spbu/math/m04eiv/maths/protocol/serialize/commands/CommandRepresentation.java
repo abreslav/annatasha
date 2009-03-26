@@ -42,7 +42,7 @@ public final class CommandRepresentation implements
 	}
 
 	@Override
-	@ExecPermissions(Command.Constructor.class)
+	@ExecPermissions(RepresentationProxy.Reader.class)
 	public Command readFromStream(InputStream stream) throws IOException {
 		assert stream != null;
 
