@@ -2,17 +2,16 @@ package ru.spbu.math.m04eiv.maths.tasks;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.google.code.annatasha.annotations.Method.ExecPermissions;
-
 import ru.spbu.math.m04eiv.maths.matrix.MatrixDescriptor;
 import ru.spbu.math.m04eiv.maths.matrix.MatrixPool;
 import ru.spbu.math.m04eiv.maths.matrix.Matrix.Dimensions;
 import ru.spbu.math.m04eiv.maths.matrix.MatrixPool.Lock;
 import ru.spbu.math.m04eiv.maths.processor.Task;
-import ru.spbu.math.m04eiv.maths.processor.Worker;
 import ru.spbu.math.m04eiv.maths.processor.WorkersManager;
 import ru.spbu.math.m04eiv.maths.protocol.Status;
 import ru.spbu.math.m04eiv.maths.protocol.commands.MultiplyMatrices;
+
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 final class MuliplyMatricesTask extends Task {
 
@@ -45,6 +44,7 @@ final class MuliplyMatricesTask extends Task {
 	}
 
 	@Override
+	@ExecPermissions(Task.TExecutor.class)
 	public void execute() {
 		// The trick here is to ensure the constraint 1 of Method.MarkedResult.
 		final Lock lock = this.lock;
@@ -103,7 +103,7 @@ final class MuliplyMatricesTask extends Task {
 		dest.setStatus(Status.Cancelled);
 	}
 
-	@ExecPermissions(Worker.class)
+	@ExecPermissions(MultiplyWorker.class)
 	public void decreaseWorkersCount() {
 		int left = workers.decrementAndGet();
 		getListener().taskProgress(this, taskSize - left);

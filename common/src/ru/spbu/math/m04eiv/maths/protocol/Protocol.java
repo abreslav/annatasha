@@ -16,7 +16,7 @@ public class Protocol {
 	private final ICommandRunner commandRunner;
 	private final ExecutorService executor;
 
-	private class ListenerThread implements Runnable, Command.Constructor {
+	private class ListenerThread implements Runnable, Command.TConstructor {
 
 		@Override
 		public void run() {
@@ -43,7 +43,7 @@ public class Protocol {
 		executor.execute(new ListenerThread());
 	}
 
-	@ExecPermissions(Command.Writer.class)
+	@ExecPermissions(Command.TWriter.class)
 	public void writeCommand(Command command) {
 		try {
 			CommandRepresentation.getInstance().writeToStream(command,

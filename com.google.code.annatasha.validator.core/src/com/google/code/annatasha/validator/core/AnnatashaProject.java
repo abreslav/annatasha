@@ -6,7 +6,6 @@ import org.eclipse.core.resources.IProjectDescription;
 import org.eclipse.core.resources.IProjectNature;
 import org.eclipse.core.runtime.CoreException;
 
-
 public class AnnatashaProject implements IProjectNature {
 
 	private IProject project;
@@ -67,7 +66,9 @@ public class AnnatashaProject implements IProjectNature {
 	/*
 	 * (non-Javadoc)
 	 * 
-	 * @see org.eclipse.core.resources.IProjectNature#setProject(org.eclipse.core.resources.IProject)
+	 * @see
+	 * org.eclipse.core.resources.IProjectNature#setProject(org.eclipse.core
+	 * .resources.IProject)
 	 */
 	public void setProject(IProject project) {
 		this.project = project;

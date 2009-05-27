@@ -10,7 +10,8 @@ import ru.spbu.math.m04eiv.maths.protocol.commands.GetMatrix;
 import ru.spbu.math.m04eiv.maths.protocol.commands.MatrixResponse;
 import ru.spbu.math.m04eiv.maths.protocol.commands.MultiplyMatrices;
 import ru.spbu.math.m04eiv.maths.protocol.commands.SetMatrix;
-import ru.spbu.math.m04eiv.maths.tasks.ITasksFactory;
+
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 public final class TasksFactory implements ITasksFactory {
 
@@ -23,6 +24,7 @@ public final class TasksFactory implements ITasksFactory {
 		this.pool = pool;
 	}
 
+	@ExecPermissions(TTaskCreator.class)
 	public Task createTask(Protocol protocol, Command command) {
 		Builder b = new Builder(protocol, manager, pool);
 		command.acceptVisitor(b);

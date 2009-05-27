@@ -17,16 +17,16 @@ public final class Matrix {
 	}
 
 	
-	@Field.WritePermissions(IMatrixWriter.class)
-	@Field.ReadPermissions(IMatrixReader.class)
+	@Field.WritePermissions(TMatrixWriter.class)
+	@Field.ReadPermissions(TMatrixReader.class)
 	private int[] data = null;
 	
-	@Field.WritePermissions(IMatrixWriter.class)
-	@Field.ReadPermissions(IMatrixReader.class)
+	@Field.WritePermissions(TMatrixWriter.class)
+	@Field.ReadPermissions(TMatrixReader.class)
 	private int M;
 	
-	@Field.WritePermissions(IMatrixWriter.class)
-	@Field.ReadPermissions(IMatrixReader.class)
+	@Field.WritePermissions(TMatrixWriter.class)
+	@Field.ReadPermissions(TMatrixReader.class)
 	private int N;
 
 	public Matrix(int M, int N) {
@@ -40,7 +40,7 @@ public final class Matrix {
 		System.arraycopy(data, 0, this.data, 0, data.length);
 	}
 
-	@Method.ExecPermissions(IMatrixWriter.class)
+	@Method.ExecPermissions(TMatrixWriter.class)
 	public void setSize(int M, int N) {
 		this.M = M;
 		this.N = N;
@@ -50,22 +50,22 @@ public final class Matrix {
 		}
 	}
 
-	@Method.ExecPermissions(IMatrixReader.class)
+	@Method.ExecPermissions(TMatrixReader.class)
 	public Dimensions getSize() {
 		return new Dimensions(M, N);
 	}
 
-	@Method.ExecPermissions(IMatrixWriter.class)
+	@Method.ExecPermissions(TMatrixWriter.class)
 	public void setCell(int m, int n, int val) {
 		data[m * N + n] = val;
 	}
 
-	@Method.ExecPermissions(IMatrixReader.class)
+	@Method.ExecPermissions(TMatrixReader.class)
 	public int getCell(int m, int n) {
 		return data[m * N + n];
 	}
 
-	@Method.ExecPermissions(IMatrixWriter.class)
+	@Method.ExecPermissions(TMatrixWriter.class)
 	public void copyFrom(Matrix matrix) {
 		Dimensions d = matrix.getSize();
 		setSize(d.M, d.N);

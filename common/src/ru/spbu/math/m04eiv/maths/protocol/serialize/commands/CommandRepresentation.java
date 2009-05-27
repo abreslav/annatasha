@@ -59,7 +59,7 @@ public final class CommandRepresentation implements
 	}
 
 	@Override
-	@ExecPermissions({ Command.Reader.class, Command.Visitor.class })
+	@ExecPermissions({ Command.TReader.class, Command.TVisitor.class })
 	public void writeToStream(Command object, OutputStream stream)
 			throws IOException {
 		Writer w = new Writer(stream);

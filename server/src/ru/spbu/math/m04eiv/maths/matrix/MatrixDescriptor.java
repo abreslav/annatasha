@@ -4,7 +4,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import ru.spbu.math.m04eiv.maths.protocol.Status;
-import ru.spbu.math.m04eiv.maths.tasks.IResourceManager;
+import ru.spbu.math.m04eiv.maths.tasks.TResourceManager;
 
 import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
@@ -16,21 +16,22 @@ public final class MatrixDescriptor {
 
 	private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
 
-	@ExecPermissions( { IMatrixReader.class, IMatrixWriter.class })
+	@ExecPermissions( { TMatrixReader.class, TMatrixWriter.class })
 	public Matrix getMatrix() {
 		return matrix;
 	}
 
-	@ExecPermissions( { IMatrixReader.class, IMatrixWriter.class })
+	@ExecPermissions( { TMatrixReader.class, TMatrixWriter.class })
 	public void setStatus(Status status) {
 		this.status = status;
 	}
 
+	@ExecPermissions( { TMatrixReader.class, TResourceManager.class })
 	public Status getStatus() {
 		return status;
 	}
 
-	@ExecPermissions( IResourceManager.class )
+	@ExecPermissions(TResourceManager.class)
 	public ReadWriteLock getLock() {
 		return rwLock;
 	}

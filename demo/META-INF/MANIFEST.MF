@@ -1,0 +1,10 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Demo Plug-in
+Bundle-SymbolicName: DemoBuilder; singleton:=true
+Bundle-Version: 1.0.0
+Bundle-Vendor: Ivan @Egorich@ Egorov
+Require-Bundle: org.eclipse.core.resources,
+ org.eclipse.core.runtime,
+ org.eclipse.ui
+Bundle-RequiredExecutionEnvironment: JavaSE-1.6

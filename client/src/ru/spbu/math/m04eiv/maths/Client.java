@@ -31,7 +31,7 @@ public final class Client implements Runnable {
 
 	private final static int PORT = 4848;
 
-	private Protocol proto;
+	private volatile Protocol proto;
 
 	public Client() {
 	}

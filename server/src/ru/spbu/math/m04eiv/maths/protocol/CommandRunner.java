@@ -3,15 +3,17 @@ package ru.spbu.math.m04eiv.maths.protocol;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-import ru.spbu.math.m04eiv.maths.processor.WorkersManager;
 import ru.spbu.math.m04eiv.maths.protocol.commands.Command;
 import ru.spbu.math.m04eiv.maths.tasks.ITask;
-import ru.spbu.math.m04eiv.maths.tasks.ITaskManager;
 import ru.spbu.math.m04eiv.maths.tasks.ITasksFactory;
+import ru.spbu.math.m04eiv.maths.tasks.ITasksProcessor;
+import ru.spbu.math.m04eiv.maths.tasks.TTaskManager;
+
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 public class CommandRunner implements ICommandRunner {
 
-	private final class CommandExecutor implements Runnable, ITaskManager {
+	private final class CommandExecutor implements Runnable, TTaskManager {
 		private final ITask t;
 
 		private CommandExecutor(ITask t) {
@@ -27,16 +29,17 @@ public class CommandRunner implements ICommandRunner {
 
 	private Protocol protocol;
 
-	private final WorkersManager processor;
+	private final ITasksProcessor processor;
 	private final ITasksFactory tasksFactory;
 
 	private final Executor executor = Executors.newSingleThreadExecutor();
 
-	public CommandRunner(WorkersManager processor, ITasksFactory tasksFactory) {
+	public CommandRunner(ITasksProcessor processor, ITasksFactory tasksFactory) {
 		this.processor = processor;
 		this.tasksFactory = tasksFactory;
 	}
 
+	@ExecPermissions(TCommandRunnerOwner.class)
 	public void setProtocol(Protocol protocol) {
 		assert this.protocol == null;
 

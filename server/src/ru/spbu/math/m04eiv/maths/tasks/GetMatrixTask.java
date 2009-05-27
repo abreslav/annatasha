@@ -1,5 +1,7 @@
 package ru.spbu.math.m04eiv.maths.tasks;
 
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
+
 import ru.spbu.math.m04eiv.maths.matrix.Matrix;
 import ru.spbu.math.m04eiv.maths.matrix.MatrixDescriptor;
 import ru.spbu.math.m04eiv.maths.matrix.MatrixPool;
@@ -40,6 +42,7 @@ final class GetMatrixTask extends Task {
 	}
 
 	@Override
+	@ExecPermissions(Task.TExecutor.class)
 	public void execute() {
 		final MatrixDescriptor readDescriptor = lock.getReadDescriptor(0);
 

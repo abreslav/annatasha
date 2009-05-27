@@ -1,10 +1,8 @@
 package com.google.code.annatasha.validator.internal.build;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.core.resources.IResource;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
@@ -32,37 +30,34 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.Assignment.Operator;
 
-import com.google.code.annatasha.validator.internal.build.AnnatashaValidationResolver.Error;
-import com.google.code.annatasha.validator.internal.structures.FieldInformation;
-import com.google.code.annatasha.validator.internal.structures.MethodInformation;
-import com.google.code.annatasha.validator.internal.structures.TypeInformation;
+class MethodBodyVerifier extends ASTVisitor {
 
-public class MethodBodyVerifier extends ASTVisitor {
-
-	private final AnnatashaValidationResolver visitor;
-	private final IResource resource;
-
-	private int verifiers = 0;
+	private final IAnnatashaModelResolver resolver;
+	private final IReportListener listener;
 
 	private boolean readAccessFlag;
 	private boolean writeAccessFlag;
-	private boolean threadStarterParameter;
+	private boolean parameterFlag;
 
-	private CoreException exception = null;
+	private ITypeBinding type;
+	private boolean isThreadStarter;
+
 	private MethodInformation method;
 
-	public MethodBodyVerifier(AnnatashaValidationResolver visitor, IResource resource,
-			MethodInformation method) {
-		this.visitor = visitor;
-		this.resource = resource;
-		this.method = method;
+	private IResource resource;
+
+	public MethodBodyVerifier(IAnnatashaModelResolver resolver,
+			IReportListener listener) {
+		this.resolver = resolver;
+		this.listener = listener;
 	}
 
-	public void buildAccessStructures(ASTNode node) throws CoreException {
-		exception = null;
-		node.accept(this);
-		if (exception != null)
-			throw exception;
+	public void validate(IResource resource, MethodInformation method,
+			ASTNode methodBody) {
+		this.resource = resource;
+		this.method = method;
+
+		methodBody.accept(this);
 	}
 
 	// STOP METHODS
@@ -83,6 +78,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 	public boolean visit(ArrayAccess node) {
 		verify(node.getArray(), readAccessFlag, writeAccessFlag, false);
 		verify(node.getIndex(), true, false, false);
+		type = node.resolveTypeBinding();
 		return false;
 	}
 
@@ -90,7 +86,7 @@ public class MethodBodyVerifier extends ASTVisitor {
 	public boolean visit(AssertStatement node) {
 		verify(node.getExpression(), true, false, false);
 		if (node.getMessage() != null) {
-			verify(node.getExpression(), true, false, false);
+			verify(node.getMessage(), true, false, false);
 		}
 		return false;
 	}
@@ -99,49 +95,38 @@ public class MethodBodyVerifier extends ASTVisitor {
 	public boolean visit(Assignment node) {
 		verify(node.getLeftHandSide(), node.getOperator() != Operator.ASSIGN,
 				true, false);
-		verify(node.getRightHandSide(), true, false, false);
+		ITypeBinding lhs = type;
+		boolean lts = isThreadStarter;
 
-		try {
-			ITypeBinding lhs = node.getLeftHandSide().resolveTypeBinding();
-			ITypeBinding rhs = node.getRightHandSide().resolveTypeBinding();
-			validateAssignment(node, lhs, rhs);
-		} catch (CircularReferenceException e) {
-			// XXX error handler!!!
-		} catch (CoreException e) {
-			exception = e;
-		}
+		verify(node.getRightHandSide(), true, false, false);
+		ITypeBinding rhs = type;
+		boolean rts = isThreadStarter;
+
+		validateCast(node, rhs, rts, lhs, lts);
 		return false;
 	}
 
 	@Override
 	public boolean visit(CastExpression node) {
-		ITypeBinding src = node.getExpression().resolveTypeBinding();
-		ITypeBinding dest = node.resolveTypeBinding();
-		try {
-			validateAssignment(node, dest, src);
-		} catch (CircularReferenceException e) {
-			// XXX error handler!!!
-		} catch (CoreException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		verify(node.getExpression(), readAccessFlag, writeAccessFlag,
+				parameterFlag);
+		ITypeBinding lhs = type;
+		boolean lts = isThreadStarter;
 
-		return true;
+		ITypeBinding rhs = node.resolveTypeBinding();
+		boolean rts = isTask(lhs) && !isTask(rhs);
+
+		validateCast(node, rhs, rts, lhs, lts);
+
+		return false;
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public boolean visit(ClassInstanceCreation node) {
-		try {
-			MethodInformation methodInfo = visitor.getMethodInfo(node
-					.resolveConstructorBinding());
+		processMethodInvocation(node, node.resolveConstructorBinding(), node
+				.arguments());
 
-			List<Expression> params = node.arguments();
-			validateParameters(node.resolveConstructorBinding(), methodInfo,
-					params);
-		} catch (CircularReferenceException ex) {
-			// XXX handle
-		}
 		return false;
 	}
 
@@ -149,86 +134,77 @@ public class MethodBodyVerifier extends ASTVisitor {
 	public boolean visit(VariableDeclarationFragment node) {
 		if (node.getInitializer() != null) {
 			verify(node.getInitializer(), true, false, false);
-			try {
-				validateAssignment(node, node.resolveBinding().getType(), node
-						.getInitializer().resolveTypeBinding());
-			} catch (CircularReferenceException e) {
-				// XXX handle error
-			} catch (CoreException e) {
-				exception = e;
-			}
 		}
-		return true;
+		return false;
 	}
 
 	@Override
 	public boolean visit(FieldAccess node) {
 		verify(node.getExpression(), true, false, false);
+		if (isThreadStarter) {
+			reportProblem(node.getExpression(),
+					Error.ThreadStarterCannotBePartOfExpression);
+		}
 
-		IVariableBinding binding = node.resolveFieldBinding();
-		checkAccessPolicy(node, binding);
+		checkAccessPolicy(node, node.resolveFieldBinding(), readAccessFlag,
+				writeAccessFlag, parameterFlag);
+
 		return false;
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public boolean visit(MethodInvocation node) {
-		IMethodBinding binding = node.resolveMethodBinding();
-		MethodInformation info;
-		try {
-			info = visitor.getMethodInfo(binding);
-
-			if (node.getExpression() != null) {
-				verify(node.getExpression(), true, false, false);
+		if (node.getExpression() != null) {
+			verify(node.getExpression(), true, false, false);
+			if (isThreadStarter) {
+				reportProblem(node.getExpression(),
+						Error.ThreadStarterCannotBePartOfExpression);
 			}
-
-			List<Expression> params = node.arguments();
-
-			validateParameters(binding, info, params);
-		} catch (CircularReferenceException e1) {
-			// XXX
 		}
+
+		IMethodBinding binding = node.resolveMethodBinding();
+		processMethodInvocation(node, binding, node.arguments());
+
 		return false;
 	}
 
-	/**
-	 * @param binding
-	 * @param info
-	 * @param params
-	 * @throws CircularReferenceException
-	 */
-	private void validateParameters(IMethodBinding binding,
-			MethodInformation info, List<Expression> params)
-			throws CircularReferenceException {
-		ArrayList<Integer> threadStarterParameters = info
-				.getThreadStarterParameters();
-		ITypeBinding[] paramsTypes = binding.getParameterTypes();
+	private void processMethodInvocation(ASTNode node, IMethodBinding binding,
+			List<Expression> params) {
+		ITypeBinding[] parameterTypes = binding.getParameterTypes();
 
-		int cursor = 0;
-		int curValue = threadStarterParameters.size() > 0 ? threadStarterParameters
-				.get(0)
-				: -1;
+		MethodInformation info = resolver.getMethodInformation(binding
+				.getMethodDeclaration().getKey());
 
-		int len = params.size();
-		for (int i = 0; i < len; ++i) {
-			final ITypeBinding paramType = paramsTypes[i];
-			final Expression paramValue = params.get(i);
-			boolean write = paramType.getDimensions() != 0;
-			verify(paramValue, true, write, i == curValue);
-			if (i != curValue) {
-				try {
-					validateAssignment(paramValue, paramType, paramValue
-							.resolveTypeBinding());
-				} catch (CoreException e) {
-					exception = e;
-				}
-			} else {
-				++cursor;
-				curValue = threadStarterParameters.size() > cursor ? threadStarterParameters
-						.get(cursor)
-						: -1;
+		if (info == null) {
+			reportProblem(node, Error.SymbolUndefined);
+		} else {
+			if (!mightAccess(method.getExecPermissions(), info
+					.getExecPermissions())) {
+				reportProblem(node,
+						Error.MethodAttemptsToExecInaccessibleMethod);
 			}
 		}
+		int threadStartersCount = info == null ? 0 : info.threadStarters.size();
+
+		int i = 0;
+		int cursor = 0;
+		for (Expression param : params) {
+			verify(param, true, false, true);
+
+			boolean rts = false;
+			if (cursor < threadStartersCount
+					&& info.threadStarters.get(cursor) == i) {
+				rts = true;
+				++cursor;
+			}
+			validateCast(node, parameterTypes[i], rts, type, isThreadStarter);
+
+			++i;
+		}
+
+		type = ModelProcessor.getCorrectBinding(binding.getReturnType());
+		isThreadStarter = false;
 	}
 
 	@Override
@@ -237,7 +213,13 @@ public class MethodBodyVerifier extends ASTVisitor {
 		if (binding instanceof IVariableBinding) {
 			IVariableBinding var = (IVariableBinding) binding;
 			verify(node.getQualifier(), true, false, false);
-			checkAccessPolicy(node, var);
+			if (isThreadStarter) {
+				reportProblem(node.getQualifier(),
+						Error.ThreadStarterCannotBePartOfExpression);
+			}
+
+			checkAccessPolicy(node, var, readAccessFlag, writeAccessFlag,
+					parameterFlag);
 		}
 		return false;
 	}
@@ -247,7 +229,8 @@ public class MethodBodyVerifier extends ASTVisitor {
 		IBinding binding = node.resolveBinding();
 		if (binding instanceof IVariableBinding) {
 			IVariableBinding var = (IVariableBinding) binding;
-			checkAccessPolicy(node, var);
+			checkAccessPolicy(node, var, readAccessFlag, writeAccessFlag,
+					parameterFlag);
 		}
 		return false;
 	}
@@ -255,37 +238,24 @@ public class MethodBodyVerifier extends ASTVisitor {
 	@SuppressWarnings("unchecked")
 	@Override
 	public boolean visit(SuperConstructorInvocation node) {
-		try {
-			MethodInformation methodInfo = visitor.getMethodInfo(node
-					.resolveConstructorBinding());
-
-			List<Expression> params = node.arguments();
-			validateParameters(node.resolveConstructorBinding(), methodInfo,
-					params);
-		} catch (CircularReferenceException ex) {
-			// XXX handle
-		}
+		processMethodInvocation(node, node.resolveConstructorBinding(), node
+				.arguments());
 		return false;
 	}
 
 	@Override
 	public boolean visit(SuperFieldAccess node) {
 		IVariableBinding var = node.resolveFieldBinding();
-		checkAccessPolicy(node, var);
+		checkAccessPolicy(node, var, readAccessFlag, writeAccessFlag,
+				parameterFlag);
 		return false;
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public boolean visit(SuperMethodInvocation node) {
-		IMethodBinding binding = node.resolveMethodBinding();
-		MethodInformation info;
-		try {
-			info = visitor.getMethodInfo(binding);
-			validateParameters(binding, info, node.arguments());
-		} catch (CircularReferenceException e) {
-			// XXX handle
-		}
+		processMethodInvocation(node, node.resolveMethodBinding(), node
+				.arguments());
 		return false;
 	}
 
@@ -297,31 +267,30 @@ public class MethodBodyVerifier extends ASTVisitor {
 	@Override
 	public boolean visit(PostfixExpression node) {
 		verify(node.getOperand(), true, true, false);
-		return true;
+		return false;
 	}
 
 	@Override
 	public boolean visit(PrefixExpression node) {
 		verify(node.getOperand(), true, true, false);
-		return true;
+		return false;
 	}
 
 	private void verify(Expression node, boolean rFlag, boolean wFlag,
-			boolean tsFlag) {
+			boolean paramFlag) {
 		boolean oldR = readAccessFlag;
 		boolean oldW = writeAccessFlag;
-		boolean oldTS = threadStarterParameter;
+		boolean oldParam = parameterFlag;
+
 		readAccessFlag = rFlag;
 		writeAccessFlag = wFlag;
-		threadStarterParameter = tsFlag;
-		++verifiers;
+		parameterFlag = paramFlag;
 		try {
 			node.accept(this);
 		} finally {
 			readAccessFlag = oldR;
 			writeAccessFlag = oldW;
-			threadStarterParameter = oldTS;
-			--verifiers;
+			parameterFlag = oldParam;
 		}
 	}
 
@@ -329,60 +298,84 @@ public class MethodBodyVerifier extends ASTVisitor {
 	 * @param node
 	 *            TODO
 	 * @param binding
+	 * @param parameterFlag
+	 * @param writeAccessFlag
+	 * @param readAccessFlag
 	 */
-	private void checkAccessPolicy(ASTNode node, IVariableBinding binding) {
-		assert verifiers != 0;
-
+	private void checkAccessPolicy(ASTNode node, IVariableBinding binding,
+			boolean readAccessFlag, boolean writeAccessFlag,
+			boolean parameterFlag) {
 		if (binding.isField()) {
-			try {
-				FieldInformation fieldInfo = visitor.getFieldInfo(binding);
-
+			FieldInformation info = resolver.getFieldInformation(binding
+					.getKey());
+			if (info == null) {
+				reportProblem(node, Error.SymbolUndefined);
+			} else {
 				if (readAccessFlag) {
-					if (!method.getExecPermissions().mightAccess(
-							fieldInfo.getReadPermissions())) {
-						visitor.reportError(resource, node,
+					if (!mightAccess(method.getExecPermissions(), info
+							.getReadPermissions())) {
+						reportProblem(node,
 								Error.MethodAttemptsToReadInaccessibleVariable);
 					}
 				}
 
-				if (writeAccessFlag) {
-					if (!method.getExecPermissions().mightAccess(
-							fieldInfo.getWritePermissions())) {
-						visitor
-								.reportError(
-										resource,
-										node,
-										Error.MethodAttemptsToWriteInaccessibleVariable);
+				if (writeAccessFlag
+						|| (parameterFlag && binding.getType().isArray())) {
+					if (!mightAccess(method.getExecPermissions(), info
+							.getWritePermissions())) {
+						reportProblem(node,
+								Error.MethodAttemptsToWriteInaccessibleVariable);
 					}
 				}
-			} catch (CircularReferenceException e) {
-			} catch (CoreException e) {
-				exception = e;
 			}
+			type = ModelProcessor.getCorrectBinding(binding.getType());
+			isThreadStarter = info == null ? false : info.threadStarter.value;
 		} else if (binding.isParameter()) {
-			if (!threadStarterParameter && visitor.isThreadStarter(binding)) {
-				try {
-					visitor.reportError(resource, node,
-							Error.MethodAttemptsToAccessThreadStarterParameter);
-				} catch (CoreException e) {
-					exception = e;
-				}
-			}
+			FieldInformation info = resolver.getFieldInformation(binding
+					.getKey());
+
+			type = ModelProcessor.getCorrectBinding(binding.getType());
+			isThreadStarter = info == null ? false : info.threadStarter.value;
 		}
 	}
 
-	private void validateAssignment(ASTNode node, ITypeBinding dest,
-			ITypeBinding src) throws CircularReferenceException, CoreException {
-		TypeInformation destInfo = visitor.getTypeInfo(dest);
-		TypeInformation srcInfo = visitor.getTypeInfo(src);
-
-		if (srcInfo.isThreadStarter()
-				&& (!destInfo.isThreadStarter() || destInfo
-						.getSuperThreadMarkers()[0] != srcInfo
-						.getSuperThreadMarkers()[0])) {
-			visitor.reportError(resource, node,
-					AnnatashaValidationResolver.Error.InvalidTypeCast);
+	private void validateCast(ASTNode node, ITypeBinding dest, boolean destTS,
+			ITypeBinding src, boolean srcTS) {
+		boolean srcTask = isTask(src);
+		boolean destTask = isTask(dest);
+		if (srcTask && !destTask) {
+			// task information lost
+			if (!destTS) {
+				reportProblem(node, Error.InvalidTypeUpCast);
+			}
+		} else if (!srcTask && destTask) {
+			// new task information
+			reportProblem(node, Error.InvalidTypeDownCast);
+		} else if (srcTS && !destTS) {
+			reportProblem(node, Error.InvalidAssignment);
 		}
+
+		type = dest;
+		isThreadStarter = destTS;
+	}
+
+	private boolean isTask(ITypeBinding rhs) {
+		TypeInformation information = resolver
+				.getTypeInformation(ModelProcessor.getCorrectBinding(rhs)
+						.getKey());
+		if (information != null) {
+			return information.threadStarter;
+		}
+		return false;
+	}
+
+	private boolean mightAccess(Permissions callee, Permissions caller) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	private void reportProblem(ASTNode node, Error error) {
+		listener.reportProblem(new AstNodeMarkerFactory(resource, node), error);
 	}
 
 }

@@ -6,7 +6,7 @@ import ru.spbu.math.m04eiv.maths.protocol.commands.Command;
 
 public interface ICommandRunner {
 
-	@ExecPermissions(Command.Visitor.class)
+	@ExecPermissions(Command.TVisitor.class)
 	void push(Command command);
 
 }
