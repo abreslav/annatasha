@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension
+         id="builder"
+         name="Annatasha Verifier"
+         point="org.eclipse.core.resources.builders">
+      <builder
+            hasNature="true">
+         <run
+               class="com.google.code.annatasha.validator.core.AnnatashaBuilder">
+         </run>
+      </builder>
+   </extension>
+
+   <extension
+         id="nature"
+         name="Annatasha Project"
+         point="org.eclipse.core.resources.natures">
+      <runtime>
+         <run
+               class="com.google.code.annatasha.validator.core.AnnatashaProject">
+         </run>
+      </runtime>
+      <builder
+            id="com.google.code.annatasha.validator.core.builder">
+      </builder>
+      <requires-nature
+            id="org.eclipse.jdt.core.javanature">
+      </requires-nature>
+   </extension>
+
+   <extension
+         id="problem"
+         name="Annatasha Problem"
+         point="org.eclipse.core.resources.markers">
+      <super
+            type="org.eclipse.core.resources.problemmarker">
+      </super>
+      <persistent
+            value="true">
+      </persistent>
+   </extension>
+   
+<!--
+   <extension
+         name="Annatasha Validator"
+         point="org.eclipse.jdt.core.compilationParticipant">
+      <compilationParticipant
+            class="com.google.code.annatasha.validator.core.CompilationParticipant"
+            createsProblems="true"
+            id="com.google.code.annatasha.validator.core.compilationParticipant"
+            modifiesEnvironment="false"
+            requiredSourceLevel="1.5">
+         <managedMarker
+               markerType="com.google.code.annatasha.validator.core.problem">
+         </managedMarker>
+      </compilationParticipant>
+   </extension>
+   <extension
+         id="problem"
+         name="Annatasha Error"
+         point="org.eclipse.core.resources.markers">
+         <super
+               type="org.eclipse.jdt.core.problem" />
+         <persistent
+               value="true" />
+   </extension>
+   <extension
+         id="sampleBuilder"
+         name="Sample Project Builder"
+         point="org.eclipse.core.resources.builders">
+      <builder
+            callOnEmptyDelta="false"
+            hasNature="true"
+            isConfigurable="false">
+         <run
+               class="com.google.code.annatasha.validator.core.AnnatashaBuilder">
+         </run>
+      </builder>
+      <builder
+            hasNature="true">
+         <run
+               class="com.google.code.annatasha.validator.core.builder.SampleBuilder">
+         </run>
+      </builder>
+   </extension>
+   <extension
+         id="sampleNature"
+         name="Sample Project Nature"
+         point="org.eclipse.core.resources.natures">
+      <runtime>
+         <run
+               class="com.google.code.annatasha.validator.core.AnnatashaProject">
+         </run>
+      </runtime>
+      <requires-nature
+            id="org.eclipse.jdt.core.javanature">
+      </requires-nature>
+      <builder
+            id="com.google.code.annatasha.validator.core.builder">
+      </builder>
+      <runtime>
+         <run
+               class="com.google.code.annatasha.validator.core.builder.SampleNature">
+         </run>
+      </runtime>
+      <builder
+            id="com.google.code.annatasha.validator.core.sampleBuilder">
+      </builder>
+   </extension>
+   <extension
+         point="org.eclipse.ui.popupMenus">
+      <objectContribution
+            adaptable="true"
+            id="com.google.code.annatasha.validator.core.contribution1"
+            nameFilter="*"
+            objectClass="org.eclipse.core.resources.IProject">
+         <action
+               class="com.google.code.annatasha.validator.core.builder.ToggleNatureAction"
+               enablesFor="+"
+               id="com.google.code.annatasha.validator.core.addRemoveNatureAction"
+               label="Add/Remove Sample Nature"
+               menubarPath="additions">
+         </action>
+      </objectContribution>
+   </extension>
+   <extension
+         id="xmlProblem"
+         name="XML Problem"
+         point="org.eclipse.core.resources.markers">
+      <super
+            type="org.eclipse.core.resources.problemmarker">
+      </super>
+      <persistent
+            value="true">
+      </persistent>
+   </extension>
+-->
+</plugin>
