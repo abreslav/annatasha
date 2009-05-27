@@ -5,12 +5,13 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import ru.spbu.math.m04eiv.maths.matrix.IMatrixReader;
-import ru.spbu.math.m04eiv.maths.matrix.IMatrixWriter;
-import ru.spbu.math.m04eiv.maths.tasks.IResourceManager;
+import ru.spbu.math.m04eiv.maths.matrix.TMatrixReader;
+import ru.spbu.math.m04eiv.maths.matrix.TMatrixWriter;
+import ru.spbu.math.m04eiv.maths.tasks.TResourceManager;
 import ru.spbu.math.m04eiv.maths.tasks.ITask;
+import ru.spbu.math.m04eiv.maths.tasks.ITasksProcessor;
 
-public final class WorkersManager {
+public final class WorkersManager implements ITasksProcessor {
 
 	private final class Dispatcher implements Runnable {
 		@Override
@@ -26,8 +27,8 @@ public final class WorkersManager {
 		}
 	}
 
-	private final class TaskRunner implements Runnable, IMatrixWriter,
-			IMatrixReader, IResourceManager {
+	private final class TaskRunner implements Runnable, TMatrixWriter,
+			TMatrixReader, TResourceManager {
 		private final ITask task;
 
 		private TaskRunner(ITask task) {
@@ -65,6 +66,9 @@ public final class WorkersManager {
 		executor.execute(new Dispatcher());
 	}
 
+	/* (non-Javadoc)
+	 * @see ru.spbu.math.m04eiv.maths.processor.ITaskProcessor#addTask(ru.spbu.math.m04eiv.maths.tasks.ITask)
+	 */
 	public void addTask(ITask task) {
 		assert task != null;
 

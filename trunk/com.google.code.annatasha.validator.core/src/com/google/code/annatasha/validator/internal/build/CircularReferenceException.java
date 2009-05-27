@@ -1,11 +1,16 @@
 package com.google.code.annatasha.validator.internal.build;
 
-import org.eclipse.jdt.core.dom.IBinding;
+final class CircularReferenceException extends Exception {
 
-public final class CircularReferenceException extends Exception {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -3800936195348418760L;
+	
+	public final SymbolInformation symbolInformation;
 
-	public CircularReferenceException(IBinding binding) {
-		// TODO Auto-generated constructor stub
+	public CircularReferenceException(SymbolInformation symbolInformation) {
+		this.symbolInformation = symbolInformation;
 	}
 
 }

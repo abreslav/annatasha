@@ -4,13 +4,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import ru.spbu.math.m04eiv.maths.tasks.IResourceManager;
+import ru.spbu.math.m04eiv.maths.tasks.TResourceManager;
 
 import com.google.code.annatasha.annotations.Field.ReadPermissions;
 import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 public class MatrixPool {
-
+	
 	public final class Lock {
 		private final MatrixDescriptor[] readLock;
 		private final MatrixDescriptor[] writeLock;
@@ -132,16 +132,16 @@ public class MatrixPool {
 		}
 	}
 
-	@ReadPermissions(IResourceManager.class)
+	@ReadPermissions(TResourceManager.class)
 	private final ConcurrentHashMap<String, MatrixDescriptor> map = new ConcurrentHashMap<String, MatrixDescriptor>();
 
-	@ExecPermissions(IResourceManager.class)
+	@ExecPermissions(TResourceManager.class)
 	public Lock tryAcquireLock(String[] readLock,
 			String[] writeLock) {
 		return new Lock(readLock, writeLock);
 	}
 
-	@ExecPermissions(IResourceManager.class)
+	@ExecPermissions(TResourceManager.class)
 	public void releaseLock(Lock lock) {
 		lock.release();
 	}

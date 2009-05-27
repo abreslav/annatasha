@@ -2,7 +2,7 @@ package ru.spbu.math.m04eiv.maths.protocol.commands;
 
 import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
-@ExecPermissions(Command.Reader.class)
+@ExecPermissions(Command.TReader.class)
 public interface CommandsVisitor {
 
 	public void visit(GetMatrix command);

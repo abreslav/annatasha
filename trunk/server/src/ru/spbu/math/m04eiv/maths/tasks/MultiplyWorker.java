@@ -3,12 +3,11 @@
  */
 package ru.spbu.math.m04eiv.maths.tasks;
 
-import ru.spbu.math.m04eiv.maths.matrix.IMatrixReader;
-import ru.spbu.math.m04eiv.maths.matrix.IMatrixWriter;
+import ru.spbu.math.m04eiv.maths.matrix.TMatrixWriter;
 import ru.spbu.math.m04eiv.maths.matrix.Matrix;
 import ru.spbu.math.m04eiv.maths.processor.Worker;
 
-final class MultiplyWorker implements Worker, IMatrixReader, IMatrixWriter {
+final class MultiplyWorker implements Worker, TMatrixWriter {
 	/**
 	 * 
 	 */

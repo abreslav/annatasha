@@ -15,7 +15,7 @@ import java.lang.annotation.Target;
  * 
  * @author Ivan Egorov
  */
-@Target(ElementType.PARAMETER)
+@Target({ElementType.PARAMETER, ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ThreadStarter {
 

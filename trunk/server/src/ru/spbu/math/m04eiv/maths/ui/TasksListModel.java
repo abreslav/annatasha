@@ -8,6 +8,7 @@ import javax.swing.SwingUtilities;
 import ru.spbu.math.m04eiv.maths.processor.Listener;
 import ru.spbu.math.m04eiv.maths.processor.Task;
 import ru.spbu.math.m04eiv.maths.processor.WorkersManager;
+import ru.spbu.math.m04eiv.maths.tasks.TTaskManager;
 
 import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
@@ -44,11 +45,13 @@ public final class TasksListModel extends AbstractListModel {
 	private final class ProcessorListener implements Listener {
 
 		@Override
+		@ExecPermissions(TTaskManager.class)
 		public void taskProgress(Task task, int done) {
 			SwingUtilities.invokeLater(new TaskProgress(task, done));
 		}
 
 		@Override
+		@ExecPermissions(TTaskManager.class)
 		public void taskStarted(Task task, int workersCount) {
 			final TaskInfo ti = new TaskInfo();
 			ti.task = task;

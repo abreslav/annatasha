@@ -1,19 +1,19 @@
 package ru.spbu.math.m04eiv.maths.protocol.commands;
 
+import ru.spbu.math.m04eiv.maths.matrix.Matrix;
+
 import com.google.code.annatasha.annotations.Field.ReadPermissions;
 import com.google.code.annatasha.annotations.Field.WritePermissions;
 import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
-import ru.spbu.math.m04eiv.maths.matrix.Matrix;
-
 public class SetMatrix extends Command {
 
-	@ReadPermissions(Command.Reader.class)
-	@WritePermissions(Command.Constructor.class)
+	@ReadPermissions(Command.TReader.class)
+	@WritePermissions(Command.TConstructor.class)
 	private final String name;
 	
-	@ReadPermissions(Command.Reader.class)
-	@WritePermissions(Command.Constructor.class)
+	@ReadPermissions(Command.TReader.class)
+	@WritePermissions(Command.TConstructor.class)
 	private final Matrix matrix;
 
 	/**
@@ -23,29 +23,30 @@ public class SetMatrix extends Command {
 	 * @param matrix
 	 *            Matrix itself, it's not copied!
 	 */
-	@ExecPermissions(Command.Constructor.class)
+	@ExecPermissions(Command.TConstructor.class)
 	public SetMatrix(String name, Matrix matrix) {
 		this.name = name;
 		this.matrix = matrix;
 	}
 
-	@ExecPermissions(Command.Constructor.class)
+	@ExecPermissions(Command.TConstructor.class)
 	public SetMatrix(String name, int m, int n, int[] data) {
 		this.name = name;
 		matrix = new Matrix(m, n, data);
 	}
 
-	@ExecPermissions(Command.Reader.class)
+	@ExecPermissions(Command.TReader.class)
 	public String getName() {
 		return name;
 	}
 	
-	@ExecPermissions(Command.Reader.class)
+	@ExecPermissions(Command.TReader.class)
 	public Matrix getMatrix() {
 		return matrix;
 	}
 
 	@Override
+	@ExecPermissions(TVisitor.class)
 	public void acceptVisitor(CommandsVisitor visitor) {
 		visitor.visit(this);
 	}

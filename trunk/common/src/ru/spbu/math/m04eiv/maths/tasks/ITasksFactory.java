@@ -9,9 +9,9 @@ import ru.spbu.math.m04eiv.maths.protocol.commands.Command;
 public interface ITasksFactory {
 	
 	@ThreadMarker
-	public interface TaskCreator extends Command.Reader {}
+	public interface TTaskCreator extends Command.TReader {}
 
-	@ExecPermissions(TaskCreator.class)
+	@ExecPermissions(TTaskCreator.class)
 	ITask createTask(Protocol protocol, Command command);
 
 }

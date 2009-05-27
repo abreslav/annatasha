@@ -4,21 +4,20 @@ import com.google.code.annatasha.annotations.ThreadMarker;
 import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 public abstract class Command {
-	
 
 	@ThreadMarker
-	public interface Constructor {}
+	public interface TConstructor {}
 	
 	@ThreadMarker
-	public interface Visitor {}
+	public interface TVisitor {}
 	
 	@ThreadMarker
-	public interface Reader extends Visitor {}
+	public interface TReader extends TVisitor {}
 
 	@ThreadMarker
-	public interface Writer {}
+	public interface TWriter {}
 	
-	@ExecPermissions(Visitor.class)
+	@ExecPermissions(TVisitor.class)
 	public abstract void acceptVisitor(CommandsVisitor visitor);
 	
 }

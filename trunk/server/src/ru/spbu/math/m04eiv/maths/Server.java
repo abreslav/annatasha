@@ -8,9 +8,12 @@ import ru.spbu.math.m04eiv.maths.matrix.MatrixPool;
 import ru.spbu.math.m04eiv.maths.processor.WorkersManager;
 import ru.spbu.math.m04eiv.maths.protocol.CommandRunner;
 import ru.spbu.math.m04eiv.maths.protocol.Protocol;
+import ru.spbu.math.m04eiv.maths.tasks.TTaskManager;
 import ru.spbu.math.m04eiv.maths.tasks.TasksFactory;
 
-public final class Server implements Runnable {
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
+
+public final class Server implements Runnable, TServer {
 
 	private final static int PORT = 4848;
 
@@ -47,10 +50,12 @@ public final class Server implements Runnable {
 		server.run();
 	}
 
+	@ExecPermissions(TTaskManager.class)
 	public WorkersManager getManager() {
 		return manager;
 	}
 
+	@ExecPermissions(TServer.class)
 	private Protocol newConnection(Socket socket) {
 		CommandRunner commandRunner = new CommandRunner(manager, tasksFactory);
 		Protocol protocol = new Protocol(socket, commandRunner);

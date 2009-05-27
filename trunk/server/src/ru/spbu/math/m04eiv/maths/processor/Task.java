@@ -6,7 +6,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import ru.spbu.math.m04eiv.maths.protocol.commands.Command;
 import ru.spbu.math.m04eiv.maths.tasks.ITask;
-import ru.spbu.math.m04eiv.maths.tasks.ITaskManager;
+import ru.spbu.math.m04eiv.maths.tasks.TTaskManager;
 
 import com.google.code.annatasha.annotations.ThreadMarker;
 import com.google.code.annatasha.annotations.Method.ExecPermissions;
@@ -14,7 +14,7 @@ import com.google.code.annatasha.annotations.Method.ExecPermissions;
 public abstract class Task implements ITask {
 	
 	@ThreadMarker
-	protected interface Executor extends Command.Writer {}
+	protected interface TExecutor extends Command.TWriter {}
 	
 	private final WorkersManager manager;
 	private final Listener listener;
@@ -52,7 +52,7 @@ public abstract class Task implements ITask {
 		return listener;
 	}
 	
-	@ExecPermissions(ITaskManager.class)
+	@ExecPermissions(TTaskManager.class)
 	public final void stop() {
 		try {
 			interrupted = true;
@@ -64,7 +64,7 @@ public abstract class Task implements ITask {
 	}
 	
 	@Override
-	@ExecPermissions(Task.Executor.class)
+	@ExecPermissions(Task.TExecutor.class)
 	public abstract void execute();
 	
 	private final void done(boolean ok) {

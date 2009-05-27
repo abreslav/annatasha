@@ -14,7 +14,7 @@ package ru.spbu.math.m04eiv.maths.ui;
 import java.util.concurrent.Executors;
 
 import ru.spbu.math.m04eiv.maths.Server;
-import ru.spbu.math.m04eiv.maths.tasks.ITaskManager;
+import ru.spbu.math.m04eiv.maths.tasks.TTaskManager;
 import ru.spbu.math.m04eiv.maths.ui.TasksListModel.TaskInfo;
 
 import com.google.code.annatasha.annotations.Method.ExecPermissions;
@@ -98,7 +98,7 @@ public class ServerMonitor extends javax.swing.JFrame {
 		Executors.newSingleThreadExecutor().execute(new TasksKiller(ti));
 	}
 	
-	private final static class TasksKiller implements Runnable, ITaskManager {
+	private final static class TasksKiller implements Runnable, TTaskManager {
 		private final TaskInfo[] tasksInfo;
 
 		public TasksKiller(TaskInfo[] ti) {

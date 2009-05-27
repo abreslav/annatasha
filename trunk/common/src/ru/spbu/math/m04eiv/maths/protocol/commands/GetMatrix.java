@@ -6,31 +6,32 @@ import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 public class GetMatrix extends Command {
 
-	@ReadPermissions(Command.Reader.class)
-	@WritePermissions(Command.Constructor.class)
+	@ReadPermissions(Command.TReader.class)
+	@WritePermissions(Command.TConstructor.class)
 	private final int uid;
 
-	@ReadPermissions(Command.Reader.class)
-	@WritePermissions(Command.Constructor.class)
+	@ReadPermissions(Command.TReader.class)
+	@WritePermissions(Command.TConstructor.class)
 	private final String name;
 
-	@ExecPermissions(Command.Constructor.class)
+	@ExecPermissions(Command.TConstructor.class)
 	public GetMatrix(int uid, String name) {
 		this.uid = uid;
 		this.name = name;
 	}
 
-	@ExecPermissions(Command.Reader.class)
+	@ExecPermissions(Command.TReader.class)
 	public String getName() {
 		return name;
 	}
 	
-	@ExecPermissions(Command.Reader.class)
+	@ExecPermissions(Command.TReader.class)
 	public int getUid() {
 		return uid;
 	}
 
 	@Override
+	@ExecPermissions(TVisitor.class)
 	public void acceptVisitor(CommandsVisitor visitor) {
 		visitor.visit(this);
 	}
