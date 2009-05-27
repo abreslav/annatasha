@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.2"?>
+<plugin>
+
+   <extension
+         point="org.eclipse.ui.popupMenus">
+      <objectContribution
+            adaptable="true"
+            id="com.google.code.annatasha.validator.core.contribution1"
+            nameFilter="*"
+            objectClass="org.eclipse.jdt.core.IJavaProject">
+         <action
+               class="com.google.code.annatasha.validator.nui.actions.ToggleNatureAction"
+               enablesFor="+"
+               id="com.google.code.annatasha.validator.core.addRemoveNatureAction"
+               label="Annatasha Verification"
+               menubarPath="additions"
+               style="toggle">
+         </action>
+      </objectContribution>
+   </extension>
+
+</plugin>
