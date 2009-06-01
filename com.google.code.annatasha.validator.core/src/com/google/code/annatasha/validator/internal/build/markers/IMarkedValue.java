@@ -9,12 +9,11 @@
  * Ivan Egorov <egorich.3.04@gmail.com>
  *******************************************************************************/
 
-package com.google.code.annatasha.validator.internal.build;
+package com.google.code.annatasha.validator.internal.build.markers;
 
-import com.google.code.annatasha.validator.internal.build.symbols.Permissions;
 
-public interface IExecPermissionsHost {
-
-	public abstract Permissions getExecPermissions();
+public interface IMarkedValue {
+	
+	IMarkerFactory getMarkerFactory();
 
 }

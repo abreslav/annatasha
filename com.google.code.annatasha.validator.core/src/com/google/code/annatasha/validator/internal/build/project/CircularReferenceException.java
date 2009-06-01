@@ -9,12 +9,21 @@
  * Ivan Egorov <egorich.3.04@gmail.com>
  *******************************************************************************/
 
-package com.google.code.annatasha.validator.internal.build;
+package com.google.code.annatasha.validator.internal.build.project;
 
-import com.google.code.annatasha.validator.internal.build.symbols.Permissions;
+import com.google.code.annatasha.validator.internal.build.symbols.SymbolInformation;
 
-public interface IExecPermissionsHost {
+public final class CircularReferenceException extends Exception {
 
-	public abstract Permissions getExecPermissions();
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -3800936195348418760L;
+	
+	public final SymbolInformation symbolInformation;
+
+	public CircularReferenceException(SymbolInformation symbolInformation) {
+		this.symbolInformation = symbolInformation;
+	}
 
 }

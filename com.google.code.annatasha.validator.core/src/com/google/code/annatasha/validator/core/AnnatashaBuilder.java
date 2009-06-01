@@ -17,6 +17,10 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaCore;
+
+import com.google.code.annatasha.validator.internal.build.project.ProjectBuilder;
 
 public class AnnatashaBuilder extends IncrementalProjectBuilder {
 
@@ -30,18 +34,23 @@ public class AnnatashaBuilder extends IncrementalProjectBuilder {
 	protected IProject[] build(int kind, Map args, IProgressMonitor monitor)
 			throws CoreException {
 		if (kind == FULL_BUILD || kind == INCREMENTAL_BUILD) {
-			AnnatashaCore.getModel().sync(monitor);
+			AnnatashaCore.ensureProject(getJavaProject());
+			ProjectBuilder builder = new ProjectBuilder(AnnatashaCore
+					.getModel(), AnnatashaCore.getProject(getJavaProject()),
+					AnnatashaCore.getModel().getResolver(), AnnatashaCore
+							.getModel());
+			builder.syncProject(monitor);
+			AnnatashaCore.getModel().getValidator().revalidate();
 		} else if (kind == CLEAN_BUILD) {
 			AnnatashaCore.getModel().clean();
 		}
-			/*
-		 * else { IResourceDelta delta = getDelta(getProject()); if (delta ==
-		 * null) { fullBuild(monitor); } else { incrementalBuild(delta,
-		 * monitor); } }
-		 */
 		return null;
 	}
-	
+
+	private IJavaProject getJavaProject() throws CoreException {
+		return (IJavaProject) getProject().getNature(JavaCore.NATURE_ID);
+	}
+
 	@Override
 	protected void clean(IProgressMonitor monitor) throws CoreException {
 		AnnatashaCore.getModel().clean();

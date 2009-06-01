@@ -16,6 +16,7 @@ import org.eclipse.jdt.core.IJavaProject;
 
 import com.google.code.annatasha.validator.internal.build.AnnatashaModel;
 
+
 public final class AnnatashaCore {
 
 	/**
@@ -76,8 +77,16 @@ public final class AnnatashaCore {
 		getModel().removeProject(project);
 	}
 
+	public static void ensureProject(IJavaProject javaProject) throws CoreException {
+		getModel().ensureProject(javaProject);
+	}
+
 	public static boolean isProject(IJavaProject project) {
 		return getModel().isProject(project);
+	}
+
+	public static AnnatashaProject getProject(IJavaProject project) {
+		return getModel().getProject(project);
 	}
 
 }

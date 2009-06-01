@@ -9,12 +9,23 @@
  * Ivan Egorov <egorich.3.04@gmail.com>
  *******************************************************************************/
 
-package com.google.code.annatasha.validator.internal.build;
+package com.google.code.annatasha.validator.internal.build.markers;
 
-import com.google.code.annatasha.validator.internal.build.symbols.Permissions;
 
-public interface IExecPermissionsHost {
+public final class MarkedAssignment implements IMarkedValue {
 
-	public abstract Permissions getExecPermissions();
+	private final IMarkerFactory factory;
+	public final MarkedExpression left;
+	public final MarkedExpression right;
+
+	public MarkedAssignment(IMarkerFactory factory, MarkedExpression left, MarkedExpression right) {
+		this.factory = factory;
+		this.left = left;
+		this.right = right;
+	}
+
+	public IMarkerFactory getMarkerFactory() {
+		return factory;
+	}
 
 }

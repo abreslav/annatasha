@@ -9,12 +9,16 @@
  * Ivan Egorov <egorich.3.04@gmail.com>
  *******************************************************************************/
 
-package com.google.code.annatasha.validator.internal.build;
+package com.google.code.annatasha.validator.internal.build.markers;
 
-import com.google.code.annatasha.validator.internal.build.symbols.Permissions;
+import org.eclipse.core.resources.IMarker;
+import org.eclipse.core.runtime.CoreException;
 
-public interface IExecPermissionsHost {
+public final class NullMarkerFactory implements IMarkerFactory {
 
-	public abstract Permissions getExecPermissions();
+	public IMarker createMarker(int code, int severity, String message)
+			throws CoreException {
+		return null;
+	}
 
 }
