@@ -1,7 +1,5 @@
 package ru.spbu.math.m04eiv.maths.server.tasks;
 
-import com.google.code.annatasha.annotations.Method.ExecPermissions;
-
 import ru.spbu.math.m04eiv.maths.common.matrix.Matrix;
 import ru.spbu.math.m04eiv.maths.common.protocol.Protocol;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.GetMatrix;
@@ -23,7 +21,6 @@ final class GetMatrixTask extends Task {
 	private final static String[] writeDescriptors = new String[0];
 
 	private Lock lock;
-//	private volatile Status status;
 	private final GetMatrix command;
 
 	public GetMatrixTask(WorkersManager man, MatrixPool pool,
@@ -42,7 +39,6 @@ final class GetMatrixTask extends Task {
 	}
 
 	@Override
-	@ExecPermissions(Task.TExecutor.class)
 	public void execute() {
 		final MatrixDescriptor readDescriptor = lock.getReadDescriptor(0);
 
@@ -67,8 +63,8 @@ final class GetMatrixTask extends Task {
 		return lock.isAcquired();
 	}
 
-//	public Status getStatus() {
-//		return status;
-//	}
+	// public Status getStatus() {
+	// return status;
+	// }
 
 }

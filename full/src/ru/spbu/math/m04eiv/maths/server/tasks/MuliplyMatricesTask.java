@@ -44,7 +44,6 @@ final class MuliplyMatricesTask extends Task {
 	}
 
 	@Override
-	@ExecPermissions(Task.TExecutor.class)
 	public void execute() {
 		// The trick here is to ensure the constraint 1 of Method.MarkedResult.
 		final Lock lock = this.lock;
@@ -103,7 +102,6 @@ final class MuliplyMatricesTask extends Task {
 		dest.setStatus(Status.Cancelled);
 	}
 
-	@ExecPermissions(MultiplyWorker.class)
 	public void decreaseWorkersCount() {
 		int left = workers.decrementAndGet();
 		getListener().taskProgress(this, taskSize - left);

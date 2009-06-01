@@ -9,11 +9,25 @@
  * Ivan Egorov <egorich.3.04@gmail.com>
  *******************************************************************************/
 
-package ru.spbu.math.m04eiv.maths.common.protocol.commands;
+package ru.spbu.math.m04eiv.maths.common.tasks;
+
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 
-public abstract class Command {
+public interface ITask {
+	@ExecPermissions(TTaskExecutor.class)
+	public abstract boolean tryFetchResources();
 
-	public abstract void acceptVisitor(CommandsVisitor visitor);
+	@ExecPermissions(TTaskExecutor.class)
+	public abstract void releaseResources();
+
+	@ExecPermissions(TTaskExecutor.class)
+	public abstract void execute();
+
+	@ExecPermissions(TTaskExecutor.class)
+	public abstract void interrupt();
+
+	@ExecPermissions(TTaskExecutor.class)
+	public abstract void join();
 
 }

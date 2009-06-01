@@ -8,31 +8,27 @@ import javax.swing.SwingUtilities;
 import ru.spbu.math.m04eiv.maths.server.processor.Listener;
 import ru.spbu.math.m04eiv.maths.server.processor.Task;
 import ru.spbu.math.m04eiv.maths.server.processor.WorkersManager;
-import ru.spbu.math.m04eiv.maths.tasks.TTaskManager;
-
-import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 public final class TasksListModel extends AbstractListModel {
-	
+
 	protected final static class TaskInfo {
 		public Task task;
 		public int full;
 		public int done;
 	}
-	
+
 	private final ArrayList<TaskInfo> tasks;
-	
+
 	private final ProcessorListener listener;
-	
+
 	public TasksListModel(WorkersManager manager) {
 		tasks = new ArrayList<TaskInfo>();
 		listener = new ProcessorListener();
-		
+
 		manager.setListener(listener);
 	}
 
 	@Override
-	@ExecPermissions(UIRunnable.class)
 	public Object getElementAt(int index) {
 		return tasks.get(index);
 	}
@@ -41,28 +37,26 @@ public final class TasksListModel extends AbstractListModel {
 	public int getSize() {
 		return tasks.size();
 	}
-	
+
 	private final class ProcessorListener implements Listener {
 
 		@Override
-		@ExecPermissions(TTaskManager.class)
 		public void taskProgress(Task task, int done) {
 			SwingUtilities.invokeLater(new TaskProgress(task, done));
 		}
 
 		@Override
-		@ExecPermissions(TTaskManager.class)
 		public void taskStarted(Task task, int workersCount) {
 			final TaskInfo ti = new TaskInfo();
 			ti.task = task;
 			ti.done = 0;
 			ti.full = workersCount;
-			
+
 			SwingUtilities.invokeLater(new TaskAdded(ti));
 		}
-		
+
 	}
-	
+
 	private final class TaskAdded implements UIRunnable {
 
 		private final TaskInfo taskInfo;
@@ -77,9 +71,9 @@ public final class TasksListModel extends AbstractListModel {
 			tasks.add(taskInfo);
 			fireIntervalAdded(TasksListModel.this, oldSize, oldSize);
 		}
-		
+
 	}
-	
+
 	private final class TaskProgress implements UIRunnable {
 
 		private final Task task;
@@ -105,6 +99,6 @@ public final class TasksListModel extends AbstractListModel {
 			}
 			fireContentsChanged(TasksListModel.this, p, p);
 		}
-		
+
 	}
 }

@@ -4,27 +4,22 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import ru.spbu.math.m04eiv.maths.common.protocol.commands.Command;
-import ru.spbu.math.m04eiv.maths.tasks.ITask;
-import ru.spbu.math.m04eiv.maths.tasks.TTaskManager;
+import ru.spbu.math.m04eiv.maths.common.tasks.ITask;
+import ru.spbu.math.m04eiv.maths.common.tasks.TTaskExecutor;
 
-import com.google.code.annatasha.annotations.ThreadMarker;
 import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 public abstract class Task implements ITask {
-	
-	@ThreadMarker
-	protected interface TExecutor extends Command.TWriter {}
-	
+
 	private final WorkersManager manager;
 	private final Listener listener;
-	
+
 	private final Lock executingLock;
 	private final Condition finishedCondition;
 	private volatile boolean interrupted;
 	private volatile boolean finished;
 	private final String description;
-	
+
 	public Task(WorkersManager manager, String description) {
 		System.err.println(description);
 		this.manager = manager;
@@ -35,38 +30,37 @@ public abstract class Task implements ITask {
 		this.interrupted = false;
 		this.finished = false;
 	}
-	
+
 	public final String getDescription() {
 		return description;
 	}
-	
+
 	protected final void enqueueWorker(Worker worker) {
 		manager.enqueueWorker(worker);
 	}
-	
+
 	public final boolean isInterrupted() {
 		return interrupted;
 	}
-	
+
 	protected final Listener getListener() {
 		return listener;
 	}
-	
-	@ExecPermissions(TTaskManager.class)
+
+	@ExecPermissions(TTaskExecutor.class)
 	public final void stop() {
 		try {
 			interrupted = true;
 			interrupt();
 		} finally {
-			done(false);		
+			done(false);
 		}
 		getListener().taskProgress(this, Listener.INTERRUPTED);
 	}
-	
+
 	@Override
-	@ExecPermissions(Task.TExecutor.class)
 	public abstract void execute();
-	
+
 	private final void done(boolean ok) {
 		executingLock.lock();
 		try {
@@ -75,29 +69,28 @@ public abstract class Task implements ITask {
 		} finally {
 			executingLock.unlock();
 		}
-		
+
 		if (ok) {
 			getListener().taskProgress(this, Listener.DONE);
 		}
 	}
-	
+
 	public final void done() {
 		done(true);
 	}
-	
+
 	public final void join() {
 		executingLock.lock();
 		try {
 			while (!finished) {
 				try {
 					finishedCondition.await();
-				} catch (InterruptedException e) {}
+				} catch (InterruptedException e) {
+				}
 			}
 		} finally {
 			executingLock.unlock();
 		}
 	}
-
-
 
 }

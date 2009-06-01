@@ -13,9 +13,9 @@ package ru.spbu.math.m04eiv.maths.server.ui;
 
 import java.util.concurrent.Executors;
 
+import ru.spbu.math.m04eiv.maths.common.tasks.TTaskExecutor;
 import ru.spbu.math.m04eiv.maths.server.Server;
 import ru.spbu.math.m04eiv.maths.server.ui.TasksListModel.TaskInfo;
-import ru.spbu.math.m04eiv.maths.tasks.TTaskManager;
 
 import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
@@ -24,7 +24,7 @@ import com.google.code.annatasha.annotations.Method.ExecPermissions;
  * @author Ivan Egorov
  */
 public class ServerMonitor extends javax.swing.JFrame {
-	
+
 	private final Server server;
 
 	/** Creates new form ServerMonitor */
@@ -48,18 +48,11 @@ public class ServerMonitor extends javax.swing.JFrame {
 
 		jTasksList.setModel(new TasksListModel(server.getManager()));
 		jTasksList.setCellRenderer(new TaskListCellRenderer());
-		//jTasksList.setSelectionBackground(Color.BLUE);
+		// jTasksList.setSelectionBackground(Color.BLUE);
 		jScrollPane1.setViewportView(jTasksList);
 
 		jKillButton.setText("Kill");
-		jKillButton.addActionListener(new java.awt.event.ActionListener() {
-			
-			@ExecPermissions(UIRunnable.class)
-			public void actionPerformed(java.awt.event.ActionEvent evt) {
-				jKillButtonActionPerformed(evt);
-			}
-			
-		});
+		jKillButton.addActionListener(new KillAction());
 
 		javax.swing.GroupLayout layout = new javax.swing.GroupLayout(
 				getContentPane());
@@ -85,20 +78,33 @@ public class ServerMonitor extends javax.swing.JFrame {
 		pack();
 	}
 
-	@ExecPermissions(UIRunnable.class)
 	private void jKillButtonActionPerformed(java.awt.event.ActionEvent evt) {
 		final TasksListModel model = (TasksListModel) jTasksList.getModel();
 		final int[] indices = jTasksList.getSelectedIndices();
 		final TaskInfo[] ti = new TaskInfo[indices.length];
-		
+
 		for (int i = 0; i < indices.length; ++i) {
 			ti[i] = (TaskInfo) model.getElementAt(indices[i]);
 		}
-		
+
 		Executors.newSingleThreadExecutor().execute(new TasksKiller(ti));
 	}
-	
-	private final static class TasksKiller implements Runnable, TTaskManager {
+
+	private static final class UIThread implements UIRunnable {
+		public void run() {
+			ServerMonitor mon = new ServerMonitor();
+			mon.start();
+			mon.setVisible(true);
+		}
+	}
+
+	private final class KillAction implements java.awt.event.ActionListener {
+		public void actionPerformed(java.awt.event.ActionEvent evt) {
+			jKillButtonActionPerformed(evt);
+		}
+	}
+
+	private final static class TasksKiller implements Runnable, TTaskExecutor {
 		private final TaskInfo[] tasksInfo;
 
 		public TasksKiller(TaskInfo[] ti) {
@@ -106,12 +112,13 @@ public class ServerMonitor extends javax.swing.JFrame {
 		}
 
 		@Override
+		@ExecPermissions(TTaskExecutor.class)
 		public void run() {
-			for (TaskInfo ti: tasksInfo) {
+			for (TaskInfo ti : tasksInfo) {
 				ti.task.stop();
 			}
 		}
-		
+
 	}
 
 	/**
@@ -119,13 +126,7 @@ public class ServerMonitor extends javax.swing.JFrame {
 	 *            the command line arguments
 	 */
 	public static void main(String args[]) {
-		java.awt.EventQueue.invokeLater(new UIRunnable() {
-			public void run() {
-				ServerMonitor mon = new ServerMonitor();
-				mon.start();
-				mon.setVisible(true);
-			}
-		});
+		java.awt.EventQueue.invokeLater(new UIThread());
 	}
 
 	private void start() {

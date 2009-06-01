@@ -9,11 +9,16 @@
  * Ivan Egorov <egorich.3.04@gmail.com>
  *******************************************************************************/
 
-package ru.spbu.math.m04eiv.maths.common.protocol.commands;
+package ru.spbu.math.m04eiv.maths.common.tasks;
 
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
-public abstract class Command {
+import ru.spbu.math.m04eiv.maths.common.protocol.Protocol;
+import ru.spbu.math.m04eiv.maths.common.protocol.commands.Command;
 
-	public abstract void acceptVisitor(CommandsVisitor visitor);
+public interface ITasksFactory {
+
+	@ExecPermissions(TTasksFactory.class)
+	ITask createTask(Protocol protocol, Command command);
 
 }

@@ -1,7 +1,7 @@
 package ru.spbu.math.m04eiv.maths.client.tasks;
 
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.MatrixResponse;
-import ru.spbu.math.m04eiv.maths.tasks.ITask;
+import ru.spbu.math.m04eiv.maths.common.tasks.ITask;
 
 final class MatrixResponseTask implements ITask {
 	

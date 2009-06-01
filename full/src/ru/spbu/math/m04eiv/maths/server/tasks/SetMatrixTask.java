@@ -35,7 +35,6 @@ final class SetMatrixTask extends Task {
 	}
 
 	@Override
-	@ExecPermissions(Task.TExecutor.class)
 	public void execute() {
 		final MatrixDescriptor dest = lock.getWriteDescriptor(0);
 		dest.getMatrix().copyFrom(src);

@@ -2,7 +2,7 @@ package ru.spbu.math.m04eiv.maths.client.tasks;
 
 import ru.spbu.math.m04eiv.maths.common.protocol.Protocol;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.Command;
-import ru.spbu.math.m04eiv.maths.tasks.ITask;
+import ru.spbu.math.m04eiv.maths.common.tasks.ITask;
 
 final class QueryTask implements ITask {
 

@@ -4,10 +4,9 @@
 package ru.spbu.math.m04eiv.maths.server.tasks;
 
 import ru.spbu.math.m04eiv.maths.common.matrix.Matrix;
-import ru.spbu.math.m04eiv.maths.common.matrix.TMatrixWriter;
 import ru.spbu.math.m04eiv.maths.server.processor.Worker;
 
-final class MultiplyWorker implements Worker, TMatrixWriter {
+final class MultiplyWorker implements Worker {
 	/**
 	 * 
 	 */
@@ -15,7 +14,7 @@ final class MultiplyWorker implements Worker, TMatrixWriter {
 	private final int mid;
 	private final int m;
 	private final int n;
-	
+
 	private final Matrix lhs;
 	private final Matrix rhs;
 	private final Matrix dest;

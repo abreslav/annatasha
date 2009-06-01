@@ -5,13 +5,24 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import ru.spbu.math.m04eiv.maths.common.matrix.TMatrixReader;
-import ru.spbu.math.m04eiv.maths.common.matrix.TMatrixWriter;
+import ru.spbu.math.m04eiv.maths.common.tasks.ITask;
+import ru.spbu.math.m04eiv.maths.common.tasks.TTaskExecutor;
+import ru.spbu.math.m04eiv.maths.server.protocol.TTaskProcessor;
 import ru.spbu.math.m04eiv.maths.server.tasks.ITasksProcessor;
-import ru.spbu.math.m04eiv.maths.tasks.TResourceManager;
-import ru.spbu.math.m04eiv.maths.tasks.ITask;
+
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 public final class WorkersManager implements ITasksProcessor {
+
+	private static final class ListenerImplementation implements Listener {
+		@Override
+		public void taskProgress(Task task, int left) {
+		}
+
+		@Override
+		public void taskStarted(Task task, int workersCount) {
+		}
+	}
 
 	private final class Dispatcher implements Runnable {
 		@Override
@@ -27,8 +38,7 @@ public final class WorkersManager implements ITasksProcessor {
 		}
 	}
 
-	private final class TaskRunner implements Runnable, TMatrixWriter,
-			TMatrixReader, TResourceManager {
+	private final class TaskRunner implements Runnable, TTaskExecutor {
 		private final ITask task;
 
 		private TaskRunner(ITask task) {
@@ -36,6 +46,7 @@ public final class WorkersManager implements ITasksProcessor {
 		}
 
 		@Override
+		@ExecPermissions(TTaskExecutor.class)
 		public void run() {
 			if (task.tryFetchResources()) {
 				try {
@@ -62,13 +73,19 @@ public final class WorkersManager implements ITasksProcessor {
 
 	private BlockingQueue<ITask> tasks = new LinkedBlockingQueue<ITask>();
 
+	@ExecPermissions(TServer.class)
 	public void start() {
 		executor.execute(new Dispatcher());
 	}
 
-	/* (non-Javadoc)
-	 * @see ru.spbu.math.m04eiv.maths.processor.ITaskProcessor#addTask(ru.spbu.math.m04eiv.maths.tasks.ITask)
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see
+	 * ru.spbu.math.m04eiv.maths.processor.ITaskProcessor#addTask(ru.spbu.math
+	 * .m04eiv.maths.tasks.ITask)
 	 */
+	@ExecPermissions(TTaskProcessor.class)
 	public void addTask(ITask task) {
 		assert task != null;
 
@@ -95,16 +112,6 @@ public final class WorkersManager implements ITasksProcessor {
 		executor.execute(worker);
 	}
 
-	private static final Listener DUMMY_LISTENER = new Listener() {
-
-		@Override
-		public void taskProgress(Task task, int left) {
-		}
-
-		@Override
-		public void taskStarted(Task task, int workersCount) {
-		}
-
-	};
+	private static final Listener DUMMY_LISTENER = new ListenerImplementation();
 
 }
