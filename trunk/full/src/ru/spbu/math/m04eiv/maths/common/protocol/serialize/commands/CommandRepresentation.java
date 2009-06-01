@@ -17,6 +17,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
+
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.Command;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.CommandsVisitor;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.GetMatrix;
@@ -24,8 +26,7 @@ import ru.spbu.math.m04eiv.maths.common.protocol.commands.MatrixResponse;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.MultiplyMatrices;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.SetMatrix;
 import ru.spbu.math.m04eiv.maths.common.protocol.serialize.RepresentationProxy;
-
-import com.google.code.annatasha.annotations.Method.ExecPermissions;
+import ru.spbu.math.m04eiv.maths.common.protocol.serialize.TBinaryStreamReader;
 
 public final class CommandRepresentation implements RepresentationProxy {
 
@@ -52,7 +53,7 @@ public final class CommandRepresentation implements RepresentationProxy {
 	}
 
 	@Override
-	@ExecPermissions(RepresentationProxy.StreamReader.class)
+	@ExecPermissions(TBinaryStreamReader.class)
 	public Command readFromStream(InputStream stream) throws IOException {
 		assert stream != null;
 

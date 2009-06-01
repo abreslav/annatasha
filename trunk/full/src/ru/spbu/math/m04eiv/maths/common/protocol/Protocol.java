@@ -16,10 +16,10 @@ import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import com.google.code.annatasha.annotations.Method.ExecPermissions;
-
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.Command;
 import ru.spbu.math.m04eiv.maths.common.protocol.serialize.commands.CommandRepresentation;
+
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 public class Protocol {
 
@@ -27,9 +27,10 @@ public class Protocol {
 	private final ICommandRunner commandRunner;
 	private final ExecutorService executor;
 
-	private class ListenerThread implements Runnable, Command.TConstructor {
+	private class ListenerThread implements Runnable, TCommandsProcessor {
 
 		@Override
+		@ExecPermissions(TCommandsProcessor.class)
 		public void run() {
 			for (;;) {
 				Command command;
@@ -50,11 +51,11 @@ public class Protocol {
 		this.executor = Executors.newSingleThreadExecutor();
 	}
 
+	@ExecPermissions(TProtocolRunner.class)
 	public void start() {
 		executor.execute(new ListenerThread());
 	}
 
-	@ExecPermissions(Command.TWriter.class)
 	public void writeCommand(Command command) {
 		try {
 			CommandRepresentation.getInstance().writeToStream(command,

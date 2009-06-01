@@ -15,21 +15,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import com.google.code.annatasha.annotations.ThreadMarker;
 import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 public interface RepresentationProxy {
-	
-	@ThreadMarker
-	interface StreamReader {}
-	
-	@ThreadMarker
-	interface StreamWriter {}
-	
-	@ExecPermissions(StreamWriter.class)
+
 	void writeToStream(Object object, OutputStream stream) throws IOException;
-	
-	@ExecPermissions(StreamReader.class)
+
+	@ExecPermissions(TBinaryStreamReader.class)
 	Object readFromStream(InputStream stream) throws IOException;
 
 }

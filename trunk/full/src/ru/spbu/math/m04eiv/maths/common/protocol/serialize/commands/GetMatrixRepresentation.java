@@ -17,12 +17,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
+
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.GetMatrix;
 import ru.spbu.math.m04eiv.maths.common.protocol.serialize.RepresentationProxy;
+import ru.spbu.math.m04eiv.maths.common.protocol.serialize.TBinaryStreamReader;
 
 final class GetMatrixRepresentation implements RepresentationProxy {
 
 	@Override
+	@ExecPermissions(TBinaryStreamReader.class)
 	public GetMatrix readFromStream(InputStream stream) throws IOException {
 		DataInputStream dis = new DataInputStream(stream);
 		int uid = dis.readInt();

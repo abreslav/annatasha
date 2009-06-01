@@ -11,13 +11,13 @@
 
 package ru.spbu.math.m04eiv.maths.common.protocol;
 
-import com.google.code.annatasha.annotations.Method.ExecPermissions;
-
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.Command;
+
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 public interface ICommandRunner {
 
-	@ExecPermissions(Command.TVisitor.class)
+	@ExecPermissions(TCommandsTasksFactory.class)
 	void push(Command command);
 
 }

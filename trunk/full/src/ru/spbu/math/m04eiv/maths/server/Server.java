@@ -6,10 +6,10 @@ import java.net.Socket;
 
 import ru.spbu.math.m04eiv.maths.common.protocol.Protocol;
 import ru.spbu.math.m04eiv.maths.server.matrix.MatrixPool;
+import ru.spbu.math.m04eiv.maths.server.processor.TServer;
 import ru.spbu.math.m04eiv.maths.server.processor.WorkersManager;
 import ru.spbu.math.m04eiv.maths.server.protocol.CommandRunner;
 import ru.spbu.math.m04eiv.maths.server.tasks.TasksFactory;
-import ru.spbu.math.m04eiv.maths.tasks.TTaskManager;
 
 import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
@@ -28,6 +28,7 @@ public final class Server implements Runnable, TServer {
 		this.tasksFactory = new TasksFactory(manager, pool);
 	}
 
+	@ExecPermissions(TServer.class)
 	public void run() {
 		try {
 			manager.start();
@@ -45,17 +46,16 @@ public final class Server implements Runnable, TServer {
 	/**
 	 * @param args
 	 */
+	@ExecPermissions(TServer.class)
 	public static void main(String[] args) {
 		Server server = new Server();
 		server.run();
 	}
 
-	@ExecPermissions(TTaskManager.class)
 	public WorkersManager getManager() {
 		return manager;
 	}
 
-	@ExecPermissions(TServer.class)
 	private Protocol newConnection(Socket socket) {
 		CommandRunner commandRunner = new CommandRunner(manager, tasksFactory);
 		Protocol protocol = new Protocol(socket, commandRunner);

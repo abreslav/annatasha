@@ -7,12 +7,10 @@ import ru.spbu.math.m04eiv.maths.common.protocol.commands.GetMatrix;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.MatrixResponse;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.MultiplyMatrices;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.SetMatrix;
+import ru.spbu.math.m04eiv.maths.common.tasks.ITasksFactory;
 import ru.spbu.math.m04eiv.maths.server.matrix.MatrixPool;
 import ru.spbu.math.m04eiv.maths.server.processor.Task;
 import ru.spbu.math.m04eiv.maths.server.processor.WorkersManager;
-import ru.spbu.math.m04eiv.maths.tasks.ITasksFactory;
-
-import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 public final class TasksFactory implements ITasksFactory {
 
@@ -25,7 +23,6 @@ public final class TasksFactory implements ITasksFactory {
 		this.pool = pool;
 	}
 
-	@ExecPermissions(TTaskCreator.class)
 	public Task createTask(Protocol protocol, Command command) {
 		Builder b = new Builder(protocol, manager, pool);
 		command.acceptVisitor(b);

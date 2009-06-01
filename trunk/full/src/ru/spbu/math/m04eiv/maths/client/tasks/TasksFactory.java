@@ -7,8 +7,8 @@ import ru.spbu.math.m04eiv.maths.common.protocol.commands.GetMatrix;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.MatrixResponse;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.MultiplyMatrices;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.SetMatrix;
-import ru.spbu.math.m04eiv.maths.tasks.ITask;
-import ru.spbu.math.m04eiv.maths.tasks.ITasksFactory;
+import ru.spbu.math.m04eiv.maths.common.tasks.ITask;
+import ru.spbu.math.m04eiv.maths.common.tasks.ITasksFactory;
 
 public final class TasksFactory implements ITasksFactory {
 

@@ -17,14 +17,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
+
 import ru.spbu.math.m04eiv.maths.common.matrix.Matrix;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.SetMatrix;
 import ru.spbu.math.m04eiv.maths.common.protocol.serialize.MatrixRepresentation;
 import ru.spbu.math.m04eiv.maths.common.protocol.serialize.RepresentationProxy;
+import ru.spbu.math.m04eiv.maths.common.protocol.serialize.TBinaryStreamReader;
 
 final class SetMatrixRepresentation implements RepresentationProxy {
 
 	@Override
+	@ExecPermissions(TBinaryStreamReader.class)
 	public SetMatrix readFromStream(InputStream stream) throws IOException {
 		assert stream != null;
 		

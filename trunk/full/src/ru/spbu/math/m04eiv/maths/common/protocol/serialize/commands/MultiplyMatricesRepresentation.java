@@ -17,13 +17,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
+
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.MultiplyMatrices;
 import ru.spbu.math.m04eiv.maths.common.protocol.serialize.RepresentationProxy;
+import ru.spbu.math.m04eiv.maths.common.protocol.serialize.TBinaryStreamReader;
 
 final class MultiplyMatricesRepresentation implements
 		RepresentationProxy {
 
 	@Override
+	@ExecPermissions(TBinaryStreamReader.class)
 	public MultiplyMatrices readFromStream(InputStream stream)
 			throws IOException {
 		assert stream != null;
