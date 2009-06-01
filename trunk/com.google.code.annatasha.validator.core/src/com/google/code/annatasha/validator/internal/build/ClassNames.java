@@ -14,7 +14,7 @@
  */
 package com.google.code.annatasha.validator.internal.build;
 
-interface ClassNames {
+public interface ClassNames {
 	final static String PACKAGE_PREFIX = "com.google.code.annatasha.annotations";
 	
 	final static String THREAD_MARKER = PACKAGE_PREFIX + ".ThreadMarker";

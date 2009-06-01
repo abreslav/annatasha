@@ -11,7 +11,9 @@
 
 package com.google.code.annatasha.validator.internal.build;
 
-interface IReportListener {
+import com.google.code.annatasha.validator.internal.build.markers.IMarkerFactory;
+
+public interface IReportListener {
 	
 	void reportProblem(IMarkerFactory factory, Error problem);
 

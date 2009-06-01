@@ -11,15 +11,23 @@
 
 package com.google.code.annatasha.validator.core;
 
+import java.util.HashMap;
+
 import org.eclipse.core.resources.ICommand;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IProjectDescription;
 import org.eclipse.core.resources.IProjectNature;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IPath;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaCore;
+
+import com.google.code.annatasha.validator.internal.build.project.SourceFilePolicy;
 
 public class AnnatashaProject implements IProjectNature {
 
 	private IProject project;
+	public HashMap<IPath, SourceFilePolicy> sourcesInfo = new HashMap<IPath, SourceFilePolicy>();
 
 	/*
 	 * (non-Javadoc)
@@ -83,6 +91,18 @@ public class AnnatashaProject implements IProjectNature {
 	 */
 	public void setProject(IProject project) {
 		this.project = project;
+	}
+
+	public IJavaProject getJavaProject() {
+		try {
+			return (IJavaProject) project.getNature(JavaCore.NATURE_ID);
+		} catch (CoreException e) {
+			return null;
+		}
+	}
+
+	public void clear() {
+		sourcesInfo.clear();
 	}
 
 }

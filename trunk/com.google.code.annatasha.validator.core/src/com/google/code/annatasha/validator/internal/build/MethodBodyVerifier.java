@@ -41,9 +41,15 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.Assignment.Operator;
 
+import com.google.code.annatasha.validator.internal.build.markers.AstNodeMarkerFactory;
+import com.google.code.annatasha.validator.internal.build.symbols.FieldInformation;
+import com.google.code.annatasha.validator.internal.build.symbols.MethodInformation;
+import com.google.code.annatasha.validator.internal.build.symbols.Permissions;
+import com.google.code.annatasha.validator.internal.build.symbols.TypeInformation;
+
 class MethodBodyVerifier extends ASTVisitor {
 
-	private final IAnnatashaModelResolver resolver;
+	private final IModelResolver resolver;
 	private final IReportListener listener;
 
 	private boolean readAccessFlag;
@@ -57,8 +63,7 @@ class MethodBodyVerifier extends ASTVisitor {
 
 	private IResource resource;
 
-	public MethodBodyVerifier(IAnnatashaModelResolver resolver,
-			IReportListener listener) {
+	public MethodBodyVerifier(IModelResolver resolver, IReportListener listener) {
 		this.resolver = resolver;
 		this.listener = listener;
 	}
@@ -184,19 +189,20 @@ class MethodBodyVerifier extends ASTVisitor {
 			List<Expression> params) {
 		ITypeBinding[] parameterTypes = binding.getParameterTypes();
 
-		MethodInformation info = resolver.getMethodInformation(binding
-				.getMethodDeclaration().getKey());
+		MethodInformation info = resolver.getMethodInformation(KeysFactory
+				.getKey(binding.getMethodDeclaration()));
 
 		if (info == null) {
-			reportProblem(node, Error.SymbolUndefined);
+			// reportProblem(node, Error.SymbolUndefined);
 		} else {
-			if (!mightAccess(method.getExecPermissions(), info
+			if (!Permissions.mightAccess(resolver, method.getExecPermissions(), info
 					.getExecPermissions())) {
 				reportProblem(node,
 						Error.MethodAttemptsToExecInaccessibleMethod);
 			}
 		}
-		int threadStartersCount = info == null ? 0 : info.threadStarters.size();
+		int threadStartersCount = info == null || info.threadStarters == null ? 0
+				: info.threadStarters.size();
 
 		int i = 0;
 		int cursor = 0;
@@ -214,7 +220,7 @@ class MethodBodyVerifier extends ASTVisitor {
 			++i;
 		}
 
-		type = ModelProcessor.getCorrectBinding(binding.getReturnType());
+		type = ModelValidator.getCorrectBinding(binding.getReturnType());
 		isThreadStarter = false;
 	}
 
@@ -272,6 +278,8 @@ class MethodBodyVerifier extends ASTVisitor {
 
 	@Override
 	public boolean visit(ThisExpression node) {
+		type = node.resolveTypeBinding();
+		isThreadStarter = false;
 		return false;
 	}
 
@@ -317,13 +325,13 @@ class MethodBodyVerifier extends ASTVisitor {
 			boolean readAccessFlag, boolean writeAccessFlag,
 			boolean parameterFlag) {
 		if (binding.isField()) {
-			FieldInformation info = resolver.getFieldInformation(binding
-					.getKey());
+			FieldInformation info = resolver.getFieldInformation(KeysFactory
+					.getKey(binding));
 			if (info == null) {
-				reportProblem(node, Error.SymbolUndefined);
+				// reportProblem(node, Error.SymbolUndefined);
 			} else {
 				if (readAccessFlag) {
-					if (!mightAccess(method.getExecPermissions(), info
+					if (!Permissions.mightAccess(resolver, method.getExecPermissions(), info
 							.getReadPermissions())) {
 						reportProblem(node,
 								Error.MethodAttemptsToReadInaccessibleVariable);
@@ -332,20 +340,20 @@ class MethodBodyVerifier extends ASTVisitor {
 
 				if (writeAccessFlag
 						|| (parameterFlag && binding.getType().isArray())) {
-					if (!mightAccess(method.getExecPermissions(), info
+					if (!Permissions.mightAccess(resolver, method.getExecPermissions(), info
 							.getWritePermissions())) {
 						reportProblem(node,
 								Error.MethodAttemptsToWriteInaccessibleVariable);
 					}
 				}
 			}
-			type = ModelProcessor.getCorrectBinding(binding.getType());
+			type = ModelValidator.getCorrectBinding(binding.getType());
 			isThreadStarter = info == null ? false : info.threadStarter.value;
 		} else if (binding.isParameter()) {
-			FieldInformation info = resolver.getFieldInformation(binding
-					.getKey());
+			FieldInformation info = resolver.getFieldInformation(KeysFactory
+					.getKey(binding));
 
-			type = ModelProcessor.getCorrectBinding(binding.getType());
+			type = ModelValidator.getCorrectBinding(binding.getType());
 			isThreadStarter = info == null ? false : info.threadStarter.value;
 		}
 	}
@@ -371,17 +379,11 @@ class MethodBodyVerifier extends ASTVisitor {
 	}
 
 	private boolean isTask(ITypeBinding rhs) {
-		TypeInformation information = resolver
-				.getTypeInformation(ModelProcessor.getCorrectBinding(rhs)
-						.getKey());
+		TypeInformation information = resolver.getTypeInformation(KeysFactory
+				.getKey(ModelValidator.getCorrectBinding(rhs)));
 		if (information != null) {
 			return information.threadStarter;
 		}
-		return false;
-	}
-
-	private boolean mightAccess(Permissions callee, Permissions caller) {
-		// TODO Auto-generated method stub
 		return false;
 	}
 

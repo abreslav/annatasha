@@ -16,7 +16,7 @@ package com.google.code.annatasha.validator.internal.build;
 
 import java.util.Comparator;
 
-final class StringComparator implements Comparator<String> {
+public final class StringComparator implements Comparator<String> {
 	public final static StringComparator INSTANCE = new StringComparator();
 	
 	private StringComparator() {}
