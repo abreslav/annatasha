@@ -35,7 +35,7 @@ public interface ClassNames {
 			this.methodName = methodName;
 		}
 	}
-
+	
 	final static ClassNames.EntryPoint[] EntryPoints = new ClassNames.EntryPoint[] {
 			new EntryPoint("java.lang.Runnable", "run"),
 			new EntryPoint("java.util.concurrent.Callable", "call"),

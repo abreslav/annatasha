@@ -201,6 +201,7 @@ class MethodBodyVerifier extends ASTVisitor {
 						Error.MethodAttemptsToExecInaccessibleMethod);
 			}
 		}
+
 		int threadStartersCount = info == null || info.threadStarters == null ? 0
 				: info.threadStarters.size();
 
@@ -215,7 +216,7 @@ class MethodBodyVerifier extends ASTVisitor {
 				rts = true;
 				++cursor;
 			}
-			validateCast(node, parameterTypes[i], rts, type, isThreadStarter);
+			validateCast(param, parameterTypes[i], rts, type, isThreadStarter);
 
 			++i;
 		}

@@ -44,6 +44,9 @@ import com.google.code.annatasha.validator.internal.build.KeysFactory;
 import com.google.code.annatasha.validator.internal.build.ModelValidator;
 import com.google.code.annatasha.validator.internal.build.StringComparator;
 import com.google.code.annatasha.validator.internal.build.markers.IMarkerFactory;
+import com.google.code.annatasha.validator.internal.build.markers.MarkedBoolean;
+import com.google.code.annatasha.validator.internal.build.markers.MarkedString;
+import com.google.code.annatasha.validator.internal.build.markers.NullMarkerFactory;
 import com.google.code.annatasha.validator.internal.build.markers.ProjectMarkerFactory;
 import com.google.code.annatasha.validator.internal.build.symbols.FieldInformation;
 import com.google.code.annatasha.validator.internal.build.symbols.MethodInformation;
@@ -148,19 +151,47 @@ public final class ProjectBuilder implements ISourceFileRequestorCallback {
 				case IBinding.TYPE:
 					ITypeBinding type = (ITypeBinding) binding;
 					while (type.isArray()) {
-						symbolDefined(KeysFactory.getKey(type));
+						if (resolver.getTypeInformation(KeysFactory
+								.getKey(type)) == null) {
+							TypeInformation arrayType = new TypeInformation(
+									resolver, KeysFactory.getKey(type),
+									new NullSourcePolicy());
+							arrayType.annot = false;
+							arrayType.binding = type;
+							arrayType.clazz = false;
+							arrayType.entryPoint = false;
+							arrayType.execPermissions = null;
+							arrayType.hasMethods = false;
+							arrayType.inheritedFromEntryPoint = false;
+							arrayType.name = new MarkedString(
+									new NullMarkerFactory(), type
+											.getQualifiedName());
+							arrayType.superClass = null;
+							arrayType.superInterfaces = new ArrayList<MarkedString>();
+							arrayType.superThreadMarkers = new ArrayList<MarkedString>();
+							arrayType.threadMarker = new MarkedBoolean(
+									new NullMarkerFactory(), false);
+							arrayType.threadStarter = false;
+							resolver.setTypeInformation(KeysFactory
+									.getKey(type), arrayType);
+							symbolDefined(KeysFactory.getKey(type));
+						}
 						type = type.getComponentType();
 					}
-					if (!type.isPrimitive() && !type.isEnum()
-							&& !type.getQualifiedName().startsWith(
-									ClassNames.PACKAGE_PREFIX)) {
-						IClassFile file = map.get(type.getQualifiedName());
-						if (file == null) {
-							listener.reportProblem(new ProjectMarkerFactory(
-									project.getProject(), type.getName()),
-									Error.SymbolUndefined);
-						} else {
-							processor.processType(file, type);
+					if (resolver.getTypeInformation(KeysFactory.getKey(type)) == null) {
+						if (!type.isPrimitive()
+								&& !type.isEnum()
+								&& !type.getQualifiedName().startsWith(
+										ClassNames.PACKAGE_PREFIX)) {
+							IClassFile file = map.get(type.getQualifiedName());
+							if (file == null) {
+								listener.reportProblem(
+										new ProjectMarkerFactory(project
+												.getProject(), type.getName()),
+										Error.SymbolUndefined);
+							} else {
+								processor.processType(file, type);
+							}
 						}
 					}
 					break;

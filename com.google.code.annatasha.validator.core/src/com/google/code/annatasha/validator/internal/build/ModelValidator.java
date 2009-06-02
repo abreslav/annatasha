@@ -278,6 +278,12 @@ public final class ModelValidator implements IValidatorRequestsCallback,
 				}
 			}
 
+			if (info.binding.getDeclaringClass().getQualifiedName().equals(
+					"java.util.concurrent.Executor")
+					&& info.getName().value.equals("execute")) {
+				info.threadStarters = new ArrayList<Integer>();
+				info.threadStarters.add(0);
+			}
 			Queue<ITypeBinding> queue = new LinkedList<ITypeBinding>();
 			queue.addAll(Arrays.asList(info.binding.getDeclaringClass()
 					.getInterfaces()));
@@ -286,6 +292,12 @@ public final class ModelValidator implements IValidatorRequestsCallback,
 				for (IMethodBinding method : type.getDeclaredMethods()) {
 					if (info.binding.isSubsignature(method)) {
 						method = method.getMethodDeclaration();
+						if (type.getQualifiedName().equals(
+								"java.util.concurrent.Executor")
+								&& method.getName().equals("execute")) {
+							info.threadStarters = new ArrayList<Integer>();
+							info.threadStarters.add(0);
+						}
 						MethodInformation superMethod = model.getResolver()
 								.getMethodInformation(
 										KeysFactory.getKey(method));
