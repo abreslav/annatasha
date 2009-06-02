@@ -17,7 +17,7 @@ import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 public interface ICommandRunner {
 
-	@ExecPermissions(TCommandsTasksFactory.class)
+	@ExecPermissions(TTasksManager.class)
 	void push(Command command);
 
 }

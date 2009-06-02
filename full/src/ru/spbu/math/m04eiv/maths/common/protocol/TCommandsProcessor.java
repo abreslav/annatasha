@@ -6,6 +6,6 @@ import com.google.code.annatasha.annotations.ThreadMarker;
 
 @ThreadMarker
 public interface TCommandsProcessor extends TBinaryStreamReader,
-		TCommandsTasksFactory {
+		TTasksManager {
 
 }

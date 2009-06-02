@@ -17,18 +17,6 @@
                menubarPath="additions"
                style="toggle">
          </action>
-         <visibility>
-            <pluginState
-                  id="com.google.code.annatasha.validator.nui.pluginState1"
-                  value="installed">
-            </pluginState>
-         </visibility>
-         <enablement>
-            <pluginState
-                  id="com.google.code.annatasha.validator.nui.pluginState2"
-                  value="installed">
-            </pluginState>
-         </enablement>
       </objectContribution>
    </extension>
 

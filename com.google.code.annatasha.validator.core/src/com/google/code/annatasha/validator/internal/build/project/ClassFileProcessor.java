@@ -98,12 +98,14 @@ public final class ClassFileProcessor {
 							.getCorrectBinding(binding.getReturnType()));
 
 				methodInformation.execPermissions = Permissions.Any;
+				// if (!methodInformation.isConstructor) {
 				IAnnotation permissions = method
 						.getAnnotation(ClassNames.EXEC_PERMISSIONS);
 				if (permissions != null && permissions.exists()) {
 					methodInformation.execPermissions = getPermissions(factory,
 							permissions);
 				}
+				// }
 
 				for (ClassNames.EntryPoint point : ClassNames.EntryPoints) {
 					if (point.className.equals(type.getFullyQualifiedName())

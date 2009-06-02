@@ -30,7 +30,7 @@ public class Protocol {
 	private class ListenerThread implements Runnable, TCommandsProcessor {
 
 		@Override
-		@ExecPermissions(TCommandsProcessor.class)
+		// @ExecPermissions(TCommandsProcessor.class)
 		public void run() {
 			for (;;) {
 				Command command;

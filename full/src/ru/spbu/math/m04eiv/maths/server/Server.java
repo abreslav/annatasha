@@ -28,7 +28,7 @@ public final class Server implements Runnable, TServer {
 		this.tasksFactory = new TasksFactory(manager, pool);
 	}
 
-	@ExecPermissions(TServer.class)
+	// @ExecPermissions(TServer.class)
 	public void run() {
 		try {
 			manager.start();

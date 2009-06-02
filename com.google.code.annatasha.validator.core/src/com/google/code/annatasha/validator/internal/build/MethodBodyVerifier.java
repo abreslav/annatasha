@@ -195,8 +195,8 @@ class MethodBodyVerifier extends ASTVisitor {
 		if (info == null) {
 			// reportProblem(node, Error.SymbolUndefined);
 		} else {
-			if (!Permissions.mightAccess(resolver, method.getExecPermissions(), info
-					.getExecPermissions())) {
+			if (!Permissions.mightAccess(resolver, method.getExecPermissions(),
+					info.getExecPermissions())) {
 				reportProblem(node,
 						Error.MethodAttemptsToExecInaccessibleMethod);
 			}
@@ -220,7 +220,9 @@ class MethodBodyVerifier extends ASTVisitor {
 			++i;
 		}
 
-		type = ModelValidator.getCorrectBinding(binding.getReturnType());
+		type = binding.isConstructor() ? ModelValidator
+				.getCorrectBinding(binding.getDeclaringClass())
+				: ModelValidator.getCorrectBinding(binding.getReturnType());
 		isThreadStarter = false;
 	}
 
@@ -331,8 +333,8 @@ class MethodBodyVerifier extends ASTVisitor {
 				// reportProblem(node, Error.SymbolUndefined);
 			} else {
 				if (readAccessFlag) {
-					if (!Permissions.mightAccess(resolver, method.getExecPermissions(), info
-							.getReadPermissions())) {
+					if (!Permissions.mightAccess(resolver, method
+							.getExecPermissions(), info.getReadPermissions())) {
 						reportProblem(node,
 								Error.MethodAttemptsToReadInaccessibleVariable);
 					}
@@ -340,8 +342,8 @@ class MethodBodyVerifier extends ASTVisitor {
 
 				if (writeAccessFlag
 						|| (parameterFlag && binding.getType().isArray())) {
-					if (!Permissions.mightAccess(resolver, method.getExecPermissions(), info
-							.getWritePermissions())) {
+					if (!Permissions.mightAccess(resolver, method
+							.getExecPermissions(), info.getWritePermissions())) {
 						reportProblem(node,
 								Error.MethodAttemptsToWriteInaccessibleVariable);
 					}

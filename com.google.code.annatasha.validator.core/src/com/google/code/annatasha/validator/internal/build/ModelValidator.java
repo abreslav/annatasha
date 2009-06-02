@@ -189,7 +189,7 @@ public final class ModelValidator implements IValidatorRequestsCallback,
 
 			info.inheritedFromEntryPoint = false;
 			info.superThreadMarkers = new ArrayList<MarkedString>(
-					info.superThreadMarkers);
+					info.superInterfaces);
 			info.threadStarter = false;
 		} else {
 			info.inheritedFromEntryPoint = false;
@@ -246,12 +246,11 @@ public final class ModelValidator implements IValidatorRequestsCallback,
 		ITypeBinding type = info.binding.getDeclaringClass();
 		info.superDefinition = null;
 		info.superDeclarations = new ArrayList<MarkedString>();
-		if (info.execPermissions == null && typeInformation != null
-				&& typeInformation.execPermissions != null)
-			info.execPermissions = typeInformation.execPermissions;
-		if (info.execPermissions == null)
-			info.execPermissions = Permissions.Any;
-
+		// if (info.isConstructor && info.execPermissions != null
+		// && !info.execPermissions.isAnonymous()) {
+		// reportProblem(info.getName().getMarkerFactory(),
+		// Error.ConstructorMightOnlyHaveAnyAccess);
+		// }
 		if (!info.isStatic) {
 			info.inheritedFromEntryPoint = false;
 			while (type.getSuperclass() != null) {
@@ -259,17 +258,20 @@ public final class ModelValidator implements IValidatorRequestsCallback,
 				for (IMethodBinding method : type.getDeclaredMethods()) {
 					if (info.binding.isSubsignature(method)) {
 						method = method.getMethodDeclaration();
-						MethodInformation methodInformation = model
-								.getResolver().getMethodInformation(
+						MethodInformation superMethod = model.getResolver()
+								.getMethodInformation(
 										KeysFactory.getKey(method));
-						if (methodInformation == null) {
+						if (superMethod == null) {
 							// reportProblem(info.getName().getMarkerFactory(),
 							// Error.SymbolUndefined);
 						} else {
-							info.superDefinition = new MarkedString(
-									methodInformation.getName()
-											.getMarkerFactory(), KeysFactory
-											.getKey(method));
+							info.superDefinition = new MarkedString(superMethod
+									.getName().getMarkerFactory(), KeysFactory
+									.getKey(method));
+							if (superMethod.isEntryPoint()
+									|| superMethod.isInheritedFromEntryPoint()) {
+								info.inheritedFromEntryPoint = true;
+							}
 						}
 						break;
 					}
@@ -284,17 +286,20 @@ public final class ModelValidator implements IValidatorRequestsCallback,
 				for (IMethodBinding method : type.getDeclaredMethods()) {
 					if (info.binding.isSubsignature(method)) {
 						method = method.getMethodDeclaration();
-						MethodInformation methodInformation = model
-								.getResolver().getMethodInformation(
+						MethodInformation superMethod = model.getResolver()
+								.getMethodInformation(
 										KeysFactory.getKey(method));
-						if (methodInformation == null) {
+						if (superMethod == null) {
 							// reportProblem(info.getName().getMarkerFactory(),
 							// Error.SymbolUndefined);
 						} else {
 							info.superDeclarations.add(new MarkedString(
-									methodInformation.getName()
-											.getMarkerFactory(), KeysFactory
-											.getKey(method)));
+									superMethod.getName().getMarkerFactory(),
+									KeysFactory.getKey(method)));
+							if (superMethod.isEntryPoint()
+									|| superMethod.isInheritedFromEntryPoint()) {
+								info.inheritedFromEntryPoint = true;
+							}
 						}
 					} else {
 						queue.addAll(Arrays.asList(type.getInterfaces()));
@@ -303,31 +308,57 @@ public final class ModelValidator implements IValidatorRequestsCallback,
 			}
 		}
 
-		if (info.superDefinition != null) {
-			MethodInformation superMethod = model.getResolver()
-					.getMethodInformation(info.superDefinition.value);
-			revalidateSymbol(superMethod);
-
-			info.inheritedFromEntryPoint |= (superMethod.entryPoint || superMethod.inheritedFromEntryPoint);
-
-			if (!Permissions.mightAccess(model.getResolver(),
-					superMethod.execPermissions, info.execPermissions)) {
+		if (info.isInheritedFromEntryPoint()
+				&& typeInformation.isThreadStarter()) {
+			if (info.execPermissions != null) {
 				reportProblem(info.getName().getMarkerFactory(),
-						Error.ExecPermissionsInheritedViolation);
+						Error.ExecPermissionsInThreadStarterMethod);
 			}
-		}
+			if (typeInformation.superThreadMarkers != null
+					&& typeInformation.superThreadMarkers.size() == 1) {
+				TypeInformation superThreadMarker = model
+						.getResolver()
+						.getTypeInformation(
+								typeInformation.superThreadMarkers.get(0).value);
+				info.execPermissions = superThreadMarker == null ? Permissions.Any
+						: new Permissions(Arrays.asList(new MarkedString(info
+								.getName().getMarkerFactory(),
+								superThreadMarker.getKey())));
+			}
+		} else {
+			if (info.execPermissions == null && typeInformation != null
+					&& typeInformation.execPermissions != null)
+				info.execPermissions = typeInformation.execPermissions;
+			if (info.execPermissions == null)
+				info.execPermissions = Permissions.Any;
 
-		for (MarkedString decl : info.superDeclarations) {
-			MethodInformation superMethod = model.getResolver()
-					.getMethodInformation(decl.value);
-			revalidateSymbol(superMethod);
+			boolean marked = false;
+			if (info.superDefinition != null) {
+				MethodInformation superMethod = model.getResolver()
+						.getMethodInformation(info.superDefinition.value);
+				revalidateSymbol(superMethod);
 
-			info.inheritedFromEntryPoint |= (superMethod.entryPoint || superMethod.inheritedFromEntryPoint);
+				if (!Permissions.mightAccess(model.getResolver(),
+						superMethod.execPermissions, info.execPermissions)) {
+					reportProblem(info.getName().getMarkerFactory(),
+							Error.ExecPermissionsInheritedViolation);
+					marked = true;
+				}
+			}
 
-			if (!Permissions.mightAccess(model.getResolver(),
-					superMethod.execPermissions, info.execPermissions)) {
-				reportProblem(info.getName().getMarkerFactory(),
-						Error.ExecPermissionsInheritedViolation);
+			if (!marked) {
+				for (MarkedString decl : info.superDeclarations) {
+					MethodInformation superMethod = model.getResolver()
+							.getMethodInformation(decl.value);
+					revalidateSymbol(superMethod);
+
+					if (!Permissions.mightAccess(model.getResolver(),
+							superMethod.execPermissions, info.execPermissions)) {
+						reportProblem(info.getName().getMarkerFactory(),
+								Error.ExecPermissionsInheritedViolation);
+						break;
+					}
+				}
 			}
 		}
 

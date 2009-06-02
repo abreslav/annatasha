@@ -234,8 +234,8 @@ final class SourceFileProcessor extends ASTVisitor {
 		for (IExtendedModifier modifierObject : modifiers) {
 			if (modifierObject instanceof Annotation) {
 				Annotation annotation = (Annotation) modifierObject;
-				final String fqn = annotation.getTypeName()
-						.getFullyQualifiedName();
+				final String fqn = annotation.resolveTypeBinding()
+						.getQualifiedName();
 				if (ClassNames.EXEC_PERMISSIONS.equals(fqn)) {
 					typeExecPermissions = processPermissions(annotation);
 				} else if (ClassNames.THREAD_MARKER.equals(fqn)) {

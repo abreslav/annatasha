@@ -11,8 +11,6 @@
 
 package com.google.code.annatasha.validator.nui;
 
-import org.eclipse.core.resources.IWorkspace;
-import org.eclipse.core.runtime.Platform;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
