@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import ru.spbu.math.m04eiv.maths.common.matrix.Matrix.Dimensions;
 import ru.spbu.math.m04eiv.maths.common.protocol.Status;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.MultiplyMatrices;
+import ru.spbu.math.m04eiv.maths.common.tasks.TTaskExecutor;
 import ru.spbu.math.m04eiv.maths.server.matrix.MatrixDescriptor;
 import ru.spbu.math.m04eiv.maths.server.matrix.MatrixPool;
 import ru.spbu.math.m04eiv.maths.server.matrix.MatrixPool.Lock;
@@ -44,6 +45,7 @@ final class MuliplyMatricesTask extends Task {
 	}
 
 	@Override
+	@ExecPermissions(TTaskExecutor.class)
 	public void execute() {
 		// The trick here is to ensure the constraint 1 of Method.MarkedResult.
 		final Lock lock = this.lock;

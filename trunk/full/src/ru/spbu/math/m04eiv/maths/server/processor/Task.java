@@ -59,6 +59,7 @@ public abstract class Task implements ITask {
 	}
 
 	@Override
+	@ExecPermissions(TTaskExecutor.class)
 	public abstract void execute();
 
 	private final void done(boolean ok) {

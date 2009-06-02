@@ -1,9 +1,12 @@
 package ru.spbu.math.m04eiv.maths.server.tasks;
 
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
+
 import ru.spbu.math.m04eiv.maths.common.matrix.Matrix;
 import ru.spbu.math.m04eiv.maths.common.protocol.Protocol;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.GetMatrix;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.MatrixResponse;
+import ru.spbu.math.m04eiv.maths.common.tasks.TTaskExecutor;
 import ru.spbu.math.m04eiv.maths.server.matrix.MatrixDescriptor;
 import ru.spbu.math.m04eiv.maths.server.matrix.MatrixPool;
 import ru.spbu.math.m04eiv.maths.server.matrix.MatrixPool.Lock;
@@ -39,6 +42,7 @@ final class GetMatrixTask extends Task {
 	}
 
 	@Override
+	@ExecPermissions(TTaskExecutor.class)
 	public void execute() {
 		final MatrixDescriptor readDescriptor = lock.getReadDescriptor(0);
 

@@ -3,6 +3,9 @@ package ru.spbu.math.m04eiv.maths.client.tasks;
 import ru.spbu.math.m04eiv.maths.common.protocol.Protocol;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.Command;
 import ru.spbu.math.m04eiv.maths.common.tasks.ITask;
+import ru.spbu.math.m04eiv.maths.common.tasks.TTaskExecutor;
+
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 final class QueryTask implements ITask {
 
@@ -15,6 +18,7 @@ final class QueryTask implements ITask {
 	}
 
 	@Override
+	@ExecPermissions(TTaskExecutor.class)
 	public void execute() {
 		protocol.writeCommand(command);
 	}
@@ -33,6 +37,7 @@ final class QueryTask implements ITask {
 	}
 
 	@Override
-	public void join() {}
+	public void join() {
+	}
 
 }
