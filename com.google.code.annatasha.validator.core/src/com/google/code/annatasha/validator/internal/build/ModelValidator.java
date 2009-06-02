@@ -251,6 +251,11 @@ public final class ModelValidator implements IValidatorRequestsCallback,
 		// reportProblem(info.getName().getMarkerFactory(),
 		// Error.ConstructorMightOnlyHaveAnyAccess);
 		// }
+		String classFQN = info.binding == null ? null : info.binding
+				.getDeclaringClass().getQualifiedName();
+		String methodName = info.getName() == null ? null
+				: info.getName().value;
+
 		if (!info.isStatic) {
 			info.inheritedFromEntryPoint = false;
 			while (type.getSuperclass() != null) {
@@ -278,9 +283,8 @@ public final class ModelValidator implements IValidatorRequestsCallback,
 				}
 			}
 
-			if (info.binding.getDeclaringClass().getQualifiedName().equals(
-					"java.util.concurrent.Executor")
-					&& info.getName().value.equals("execute")) {
+			if ("java.util.concurrent.Executor".equals(classFQN)
+					&& "execute".equals(methodName)) {
 				info.threadStarters = new ArrayList<Integer>();
 				info.threadStarters.add(0);
 			}
@@ -317,6 +321,13 @@ public final class ModelValidator implements IValidatorRequestsCallback,
 						queue.addAll(Arrays.asList(type.getInterfaces()));
 					}
 				}
+			}
+		} else {
+			if ("java.awt.EventQueue".equals(classFQN)
+					&& ("invokeLater".equals(methodName) || "invokeAndWait"
+							.equals(methodName))) {
+				info.threadStarters = new ArrayList<Integer>();
+				info.threadStarters.add(0);
 			}
 		}
 

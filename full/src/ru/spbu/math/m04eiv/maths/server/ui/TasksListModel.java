@@ -57,7 +57,7 @@ public final class TasksListModel extends AbstractListModel {
 
 	}
 
-	private final class TaskAdded implements UIRunnable {
+	private final class TaskAdded implements Runnable {
 
 		private final TaskInfo taskInfo;
 
@@ -74,7 +74,7 @@ public final class TasksListModel extends AbstractListModel {
 
 	}
 
-	private final class TaskProgress implements UIRunnable {
+	private final class TaskProgress implements Runnable {
 
 		private final Task task;
 		private final int done;
