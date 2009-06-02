@@ -112,7 +112,7 @@ public class ServerMonitor extends javax.swing.JFrame {
 		}
 
 		@Override
-		@ExecPermissions(TTaskExecutor.class)
+		// @ExecPermissions(TTaskExecutor.class)
 		public void run() {
 			for (TaskInfo ti : tasksInfo) {
 				ti.task.stop();

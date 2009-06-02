@@ -7,7 +7,7 @@ import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 import ru.spbu.math.m04eiv.maths.common.protocol.ICommandRunner;
 import ru.spbu.math.m04eiv.maths.common.protocol.Protocol;
-import ru.spbu.math.m04eiv.maths.common.protocol.TCommandsTasksFactory;
+import ru.spbu.math.m04eiv.maths.common.protocol.TTasksManager;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.Command;
 import ru.spbu.math.m04eiv.maths.common.tasks.ITask;
 import ru.spbu.math.m04eiv.maths.common.tasks.ITasksFactory;
@@ -23,7 +23,7 @@ public class CommandRunner implements ICommandRunner {
 		}
 
 		@Override
-		@ExecPermissions(TTaskProcessor.class)
+		// @ExecPermissions(TTaskProcessor.class)
 		public void run() {
 			processor.addTask(t);
 			t.join();
@@ -49,7 +49,7 @@ public class CommandRunner implements ICommandRunner {
 	}
 
 	@Override
-	@ExecPermissions(TCommandsTasksFactory.class)
+	@ExecPermissions(TTasksManager.class)
 	public void push(Command command) {
 		assert this.protocol != null;
 

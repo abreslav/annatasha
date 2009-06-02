@@ -52,7 +52,8 @@ public enum Error {
 			0x1A, "Circular reference found"), SymbolUndefined(0x1B,
 			"Symbol undefined"), InvalidTypeDownCast(0x1B,
 			"Downcast is invalid"), InvalidAssignment(0x1C,
-			"Invalid assignment");
+			"Invalid assignment"), ConstructorMightOnlyHaveAnyAccess(0x1D,
+			"Constructors may only have { ATask } access modifier");
 
 	public final int code;
 	public final String message;

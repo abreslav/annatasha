@@ -46,7 +46,7 @@ public final class WorkersManager implements ITasksProcessor {
 		}
 
 		@Override
-		@ExecPermissions(TTaskExecutor.class)
+		// @ExecPermissions(TTaskExecutor.class)
 		public void run() {
 			if (task.tryFetchResources()) {
 				try {

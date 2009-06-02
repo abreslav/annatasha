@@ -1,5 +1,7 @@
 package ru.spbu.math.m04eiv.maths.server.tasks;
 
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
+
 import ru.spbu.math.m04eiv.maths.common.protocol.Protocol;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.Command;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.CommandsVisitor;
@@ -8,6 +10,7 @@ import ru.spbu.math.m04eiv.maths.common.protocol.commands.MatrixResponse;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.MultiplyMatrices;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.SetMatrix;
 import ru.spbu.math.m04eiv.maths.common.tasks.ITasksFactory;
+import ru.spbu.math.m04eiv.maths.common.tasks.TTasksFactory;
 import ru.spbu.math.m04eiv.maths.server.matrix.MatrixPool;
 import ru.spbu.math.m04eiv.maths.server.processor.Task;
 import ru.spbu.math.m04eiv.maths.server.processor.WorkersManager;
@@ -23,6 +26,7 @@ public final class TasksFactory implements ITasksFactory {
 		this.pool = pool;
 	}
 
+	@ExecPermissions(TTasksFactory.class)
 	public Task createTask(Protocol protocol, Command command) {
 		Builder b = new Builder(protocol, manager, pool);
 		command.acceptVisitor(b);

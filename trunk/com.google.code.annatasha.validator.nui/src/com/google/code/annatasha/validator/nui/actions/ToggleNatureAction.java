@@ -31,10 +31,6 @@ public class ToggleNatureAction implements IObjectActionDelegate {
 	private boolean checked = false;
 	private boolean allsame = false;
 
-	public ToggleNatureAction() {
-
-	}
-
 	/*
 	 * (non-Javadoc)
 	 * 

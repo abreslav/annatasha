@@ -9,18 +9,17 @@ import ru.spbu.math.m04eiv.maths.common.matrix.Matrix;
 import ru.spbu.math.m04eiv.maths.common.protocol.ICommandRunner;
 import ru.spbu.math.m04eiv.maths.common.protocol.Protocol;
 import ru.spbu.math.m04eiv.maths.common.protocol.TProtocolRunner;
+import ru.spbu.math.m04eiv.maths.common.protocol.TTasksManager;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.Command;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.GetMatrix;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.MultiplyMatrices;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.SetMatrix;
 import ru.spbu.math.m04eiv.maths.common.tasks.ITask;
-import ru.spbu.math.m04eiv.maths.common.tasks.TTaskExecutor;
 
 import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 public final class Client implements Runnable, TProtocolRunner {
-	private final class ClientTasksRunner implements ICommandRunner,
-			TTaskExecutor {
+	private final class ClientTasksRunner implements ICommandRunner {
 		private final TasksFactory factory;
 
 		private ClientTasksRunner(TasksFactory factory) {
@@ -28,7 +27,7 @@ public final class Client implements Runnable, TProtocolRunner {
 		}
 
 		@Override
-		@ExecPermissions(TTaskExecutor.class)
+		@ExecPermissions(TTasksManager.class)
 		public void push(Command command) {
 			ITask task = factory.createTask(Client.this.proto, command);
 			task.execute();
@@ -42,7 +41,7 @@ public final class Client implements Runnable, TProtocolRunner {
 	public Client() {
 	}
 
-	@ExecPermissions(TProtocolRunner.class)
+//	@ExecPermissions(TProtocolRunner.class)
 	public void run() {
 		try {
 			Socket socket = new Socket("localhost", PORT);
