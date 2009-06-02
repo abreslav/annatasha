@@ -52,6 +52,7 @@ public final class Server implements Runnable, TServer {
 		server.run();
 	}
 
+	@ExecPermissions(TServerController.class)
 	public WorkersManager getManager() {
 		return manager;
 	}
