@@ -5,6 +5,7 @@ import com.google.code.annatasha.annotations.Method.ExecPermissions;
 import ru.spbu.math.m04eiv.maths.common.matrix.Matrix;
 import ru.spbu.math.m04eiv.maths.common.protocol.Status;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.SetMatrix;
+import ru.spbu.math.m04eiv.maths.common.tasks.TTaskExecutor;
 import ru.spbu.math.m04eiv.maths.server.matrix.MatrixDescriptor;
 import ru.spbu.math.m04eiv.maths.server.matrix.MatrixPool;
 import ru.spbu.math.m04eiv.maths.server.processor.Task;
@@ -35,6 +36,7 @@ final class SetMatrixTask extends Task {
 	}
 
 	@Override
+	@ExecPermissions(TTaskExecutor.class)
 	public void execute() {
 		final MatrixDescriptor dest = lock.getWriteDescriptor(0);
 		dest.getMatrix().copyFrom(src);

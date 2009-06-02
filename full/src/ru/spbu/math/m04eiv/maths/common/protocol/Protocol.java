@@ -56,6 +56,7 @@ public class Protocol {
 		executor.execute(new ListenerThread());
 	}
 
+	@ExecPermissions(TCommandWriter.class)
 	public void writeCommand(Command command) {
 		try {
 			CommandRepresentation.getInstance().writeToStream(command,

@@ -8,6 +8,7 @@ import ru.spbu.math.m04eiv.maths.client.tasks.TasksFactory;
 import ru.spbu.math.m04eiv.maths.common.matrix.Matrix;
 import ru.spbu.math.m04eiv.maths.common.protocol.ICommandRunner;
 import ru.spbu.math.m04eiv.maths.common.protocol.Protocol;
+import ru.spbu.math.m04eiv.maths.common.protocol.TCommandWriter;
 import ru.spbu.math.m04eiv.maths.common.protocol.TProtocolRunner;
 import ru.spbu.math.m04eiv.maths.common.protocol.TTasksManager;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.Command;
@@ -58,6 +59,7 @@ public final class Client implements Runnable, TProtocolRunner {
 
 	private final static int SZ = 1000;
 
+	@ExecPermissions(TCommandWriter.class)
 	public static void main(String[] args) {
 		Client client = new Client();
 		Executors.newSingleThreadExecutor().execute(client);

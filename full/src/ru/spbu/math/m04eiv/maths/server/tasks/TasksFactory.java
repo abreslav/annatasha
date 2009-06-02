@@ -1,7 +1,5 @@
 package ru.spbu.math.m04eiv.maths.server.tasks;
 
-import com.google.code.annatasha.annotations.Method.ExecPermissions;
-
 import ru.spbu.math.m04eiv.maths.common.protocol.Protocol;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.Command;
 import ru.spbu.math.m04eiv.maths.common.protocol.commands.CommandsVisitor;
@@ -14,6 +12,8 @@ import ru.spbu.math.m04eiv.maths.common.tasks.TTasksFactory;
 import ru.spbu.math.m04eiv.maths.server.matrix.MatrixPool;
 import ru.spbu.math.m04eiv.maths.server.processor.Task;
 import ru.spbu.math.m04eiv.maths.server.processor.WorkersManager;
+
+import com.google.code.annatasha.annotations.Method.ExecPermissions;
 
 public final class TasksFactory implements ITasksFactory {
 
