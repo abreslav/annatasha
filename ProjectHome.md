@@ -1,0 +1,1 @@
+annatasha's goal is to provide Java programs with annotations in order to verify common pitfalls in multithreaded Java programs.
